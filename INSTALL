@@ -1,0 +1,15 @@
+Requires libsqlite3.
+
+On Ubuntu/Debian:
+    sudo apt install libsqlite3
+
+
+=================
+
+
+Create distribution packages (best practice):
+
+.deb for Debian/Ubuntu: declare libsqlite3-0 as a dependency.
+.rpm for Fedora/RHEL: declare sqlite-libs as dependency.
+.AppImage for portable Linux: bundle everything in one file.
+Snap/Flatpak: handle dependencies in manifest.
