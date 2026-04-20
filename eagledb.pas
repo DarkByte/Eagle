@@ -121,17 +121,15 @@ begin
     filterText := Trim(AFilterText);
     if filterText = '' then begin
       query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ORDER BY path, name';
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files ORDER BY path, name';
     end else
       if alsoSearchPath then begin
         query.SQL.Text :=
-          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ' +
-          'WHERE (name LIKE :filter OR path LIKE :filter) ' + 'ORDER BY path, name';
+          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE (name LIKE :filter OR path LIKE :filter) ORDER BY path, name';
         query.ParamByName('filter').AsString := '%' + filterText + '%';
       end else begin
         query.SQL.Text :=
-          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ' +
-          'WHERE name LIKE :filter ' + 'ORDER BY path, name';
+          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE name LIKE :filter ' + 'ORDER BY path, name';
         query.ParamByName('filter').AsString := '%' + filterText + '%';
       end;
 

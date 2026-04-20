@@ -1,4 +1,6 @@
 *.sqlite
 eagle
+TimeCheck.pas
+MyObjectStringList.pas
 backup/
 lib/

@@ -6,7 +6,9 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  laz.VirtualTrees, WatchThread, EagleDB;
+  laz.VirtualTrees,
+  TimeCheck,
+  WatchThread, EagleDB;
 
 type
 
@@ -44,7 +46,7 @@ type
     procedure RefreshFileTree;
     procedure SetupFileTree;
     procedure SortFileRecords;
-    function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): Integer;
+    function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): integer;
     procedure PopulateFileTree;
     procedure FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
     procedure FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
@@ -138,6 +140,8 @@ begin
   FFileRecords := FEagleDB.GetFiles(filterText, cbPath.Checked);
   SortFileRecords;
   PopulateFileTree;
+
+  Memo1.Lines.Add('New records added: ' + IntToStr(Length(FFileRecords)));
 end;
 
 procedure TForm1.SetupFileTree;
@@ -168,7 +172,7 @@ begin
   fileTree.OnGetText := @FileTreeGetText;
 end;
 
-function TForm1.CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): Integer;
+function TForm1.CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): integer;
 begin
   case AColumn of
     0: Result := CompareText(A.Name, B.Name);
@@ -176,21 +180,23 @@ begin
     2: begin
       if A.Size < B.Size then
         Result := -1
-      else if A.Size > B.Size then
-        Result := 1
       else
-        Result := 0;
+        if A.Size > B.Size then
+          Result := 1
+        else
+          Result := 0;
     end;
     3: begin
       if A.Time < B.Time then
         Result := -1
-      else if A.Time > B.Time then
-        Result := 1
       else
-        Result := 0;
+        if A.Time > B.Time then
+          Result := 1
+        else
+          Result := 0;
     end;
-  else
-    Result := 0;
+    else
+      Result := 0;
   end;
 
   // Keep ordering deterministic when primary values are equal.
@@ -205,9 +211,10 @@ begin
 end;
 
 procedure TForm1.SortFileRecords;
-  procedure QuickSort(L, R: Integer);
+
+  procedure QuickSort(L, R: integer);
   var
-    I, J: Integer;
+    I, J: integer;
     Pivot, Temp: TEagleFileRecord;
   begin
     I := L;
@@ -234,6 +241,7 @@ procedure TForm1.SortFileRecords;
     if I < R then
       QuickSort(I, R);
   end;
+
 begin
   if FSortColumn = NoColumn then
     Exit;
@@ -288,14 +296,9 @@ begin
 end;
 
 procedure TForm1.PopulateFileTree;
-var
-  NodeIndex: integer;
 begin
   fileTree.Clear;
-
-  for NodeIndex := 0 to High(FFileRecords) do
-    fileTree.AddChild(nil);
-
+  fileTree.RootNodeCount := Length(FFileRecords);
   fileTree.Refresh;
 end;
 

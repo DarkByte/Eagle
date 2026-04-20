@@ -10,7 +10,9 @@ uses
   athreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, Dialogs, SysUtils, BaseUnix, main, EagleDB
+  Forms, Dialogs, SysUtils, BaseUnix,
+  TimeCheck,
+  main, EagleDB
   { you can add units after this };
 
 {$R *.res}
