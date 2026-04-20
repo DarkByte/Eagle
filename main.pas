@@ -5,15 +5,14 @@ unit main;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
   laz.VirtualTrees, WatchThread, EagleDB;
 
-  type
+type
 
   { TForm1 }
-
   TForm1 = class(TForm)
-    btnEagle: TButton;
+    btnEagle: TBitBtn;
     cbPath: TCheckBox;
     edtFilter: TEdit;
     edtPathToEagle: TEdit;
@@ -21,7 +20,7 @@ uses
     Label1: TLabel;
     Memo1: TMemo;
 
-    procedure btnEagleClick;
+    procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
 
     procedure FormCreate;
@@ -31,14 +30,23 @@ uses
     FEagleDB: TEagleDB;
 
     FFileRecords: TEagleFileRecords;
+    FSortColumn: TColumnIndex;
+    FSortDirection: TSortDirection;
 
     procedure HandleLog(const AMessage: string);
+    procedure HandleCreate(const APath: string);
+    procedure HandleDelete(const APath: string);
+    procedure HandleRename(const AOldPath, ANewPath: string);
     procedure HandleInitialScan(const AFiles: array of TSearchRec);
+
     procedure SetupWatchThread;
     procedure SetupDB;
     procedure RefreshFileTree;
     procedure SetupFileTree;
+    procedure SortFileRecords;
+    function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): Integer;
     procedure PopulateFileTree;
+    procedure FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
     procedure FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
 
     procedure StopWatching;
@@ -57,6 +65,9 @@ implementation
 
 procedure TForm1.FormCreate;
 begin
+  FSortColumn := NoColumn;
+  FSortDirection := sdAscending;
+
   SetupDB;
   SetupFileTree;
   SetupWatchThread;
@@ -76,6 +87,9 @@ procedure TForm1.SetupWatchThread;
 begin
   FWatchThread := TWatchThread.Create;
   FWatchThread.SetOnLog(@HandleLog);
+  FWatchThread.SetOnCreate(@HandleCreate);
+  FWatchThread.SetOnDelete(@HandleDelete);
+  FWatchThread.SetOnRename(@HandleRename);
   FWatchThread.SetOnInitialScan(@HandleInitialScan);
 end;
 
@@ -98,7 +112,7 @@ begin
 end;
 
 // Actions
-procedure TForm1.btnEagleClick;
+procedure TForm1.btnEagleClick(Sender: TObject);
 begin
   if not Assigned(FWatchThread) then
     SetupWatchThread;
@@ -116,13 +130,13 @@ begin
 end;
 
 // FileTree
-
 procedure TForm1.RefreshFileTree;
 var
   filterText: string;
 begin
   filterText := Trim(edtFilter.Text);
   FFileRecords := FEagleDB.GetFiles(filterText, cbPath.Checked);
+  SortFileRecords;
   PopulateFileTree;
 end;
 
@@ -150,12 +164,111 @@ begin
 
   fileTree.Header.MainColumn := 0;
   fileTree.TreeOptions.SelectionOptions := fileTree.TreeOptions.SelectionOptions + [toFullRowSelect];
+  fileTree.OnHeaderClick := @FileTreeHeaderClick;
   fileTree.OnGetText := @FileTreeGetText;
+end;
+
+function TForm1.CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): Integer;
+begin
+  case AColumn of
+    0: Result := CompareText(A.Name, B.Name);
+    1: Result := CompareText(A.Path, B.Path);
+    2: begin
+      if A.Size < B.Size then
+        Result := -1
+      else if A.Size > B.Size then
+        Result := 1
+      else
+        Result := 0;
+    end;
+    3: begin
+      if A.Time < B.Time then
+        Result := -1
+      else if A.Time > B.Time then
+        Result := 1
+      else
+        Result := 0;
+    end;
+  else
+    Result := 0;
+  end;
+
+  // Keep ordering deterministic when primary values are equal.
+  if Result = 0 then begin
+    Result := CompareText(A.Path, B.Path);
+    if Result = 0 then
+      Result := CompareText(A.Name, B.Name);
+  end;
+
+  if FSortDirection = sdDescending then
+    Result := -Result;
+end;
+
+procedure TForm1.SortFileRecords;
+  procedure QuickSort(L, R: Integer);
+  var
+    I, J: Integer;
+    Pivot, Temp: TEagleFileRecord;
+  begin
+    I := L;
+    J := R;
+    Pivot := FFileRecords[(L + R) div 2];
+
+    repeat
+      while CompareFileRecords(FFileRecords[I], Pivot, FSortColumn) < 0 do
+        Inc(I);
+      while CompareFileRecords(FFileRecords[J], Pivot, FSortColumn) > 0 do
+        Dec(J);
+
+      if I <= J then begin
+        Temp := FFileRecords[I];
+        FFileRecords[I] := FFileRecords[J];
+        FFileRecords[J] := Temp;
+        Inc(I);
+        Dec(J);
+      end;
+    until I > J;
+
+    if L < J then
+      QuickSort(L, J);
+    if I < R then
+      QuickSort(I, R);
+  end;
+begin
+  if FSortColumn = NoColumn then
+    Exit;
+
+  if Length(FFileRecords) < 2 then
+    Exit;
+
+  QuickSort(0, High(FFileRecords));
+end;
+
+procedure TForm1.FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
+begin
+  if HitInfo.Column = NoColumn then
+    Exit;
+
+  if FSortColumn = HitInfo.Column then begin
+    if FSortDirection = sdAscending then
+      FSortDirection := sdDescending
+    else
+      FSortDirection := sdAscending;
+  end else begin
+    FSortColumn := HitInfo.Column;
+    FSortDirection := sdAscending;
+  end;
+
+  fileTree.Header.SortColumn := FSortColumn;
+  fileTree.Header.SortDirection := FSortDirection;
+
+  SortFileRecords;
+  PopulateFileTree;
 end;
 
 procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
 var
-  NodeIndex: Integer;
+  NodeIndex: integer;
 begin
   CellText := '';
 
@@ -176,7 +289,7 @@ end;
 
 procedure TForm1.PopulateFileTree;
 var
-  NodeIndex: Integer;
+  NodeIndex: integer;
 begin
   fileTree.Clear;
 
@@ -194,10 +307,40 @@ begin
   Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
 end;
 
+procedure TForm1.HandleCreate(const APath: string);
+var
+  sr: TSearchRec;
+begin
+  if FindFirst(APath, faAnyFile, sr) <> 0 then
+    Exit;
+
+  try
+    if (sr.Attr and faDirectory) <> 0 then
+      Exit;
+
+    FEagleDB.AddFile(sr.Name, ExtractFileDir(APath), sr.Size, sr.Time);
+  finally
+    FindClose(sr);
+  end;
+
+  RefreshFileTree;
+end;
+
+procedure TForm1.HandleRename(const AOldPath, ANewPath: string);
+begin
+  FEagleDB.RenamePath(AOldPath, ANewPath);
+  RefreshFileTree;
+end;
+
+procedure TForm1.HandleDelete(const APath: string);
+begin
+  FEagleDB.DeletePath(APath);
+  RefreshFileTree;
+end;
+
 procedure TForm1.HandleLog(const AMessage: string);
 begin
   Memo1.Lines.Add(AMessage);
 end;
 
 end.
-

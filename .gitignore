@@ -1,2 +1,4 @@
 *.sqlite
 eagle
+backup/
+lib/

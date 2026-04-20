@@ -12,7 +12,7 @@ type
     Name: string;
     Path: string;
     Size: int64;
-    Time: LongInt;
+    Time: longint;
   end;
 
   TEagleFileRecords = array of TEagleFileRecord;
@@ -31,10 +31,13 @@ type
 
     procedure Open;
     procedure Close;
-    function IsOpen: Boolean;
-    function GetFiles(const AFilterText: string; const ASearchInPath: Boolean): TEagleFileRecords;
+    function IsOpen: boolean;
+    function GetFiles(const AFilterText: string; const alsoSearchPath: boolean): TEagleFileRecords;
 
-    procedure AddFile(name, path: string; size: int64; timestamp: longint);
+    procedure AddFile(Name, path: string; size: int64; timestamp: longint);
+    procedure DeleteFile(const fullPath: string);
+    procedure DeletePath(const fullPath: string);
+    procedure RenamePath(const oldPath, newPath: string);
     procedure SyncFiles(const AFiles: array of TSearchRec);
   end;
 
@@ -64,22 +67,16 @@ end;
 procedure TEagleDB.EnsureSchema;
 begin
   FConnection.ExecuteDirect(
-    'CREATE TABLE IF NOT EXISTS files (' +
-    'id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
-    'path TEXT NOT NULL, ' +
-    'name TEXT NOT NULL, ' +
-    'size INTEGER, ' +
-    'timestamp INTEGER, ' +
-    'UNIQUE(name, path)' +
-    ');'
-  );
+    'CREATE TABLE IF NOT EXISTS files (' + 'id INTEGER PRIMARY KEY AUTOINCREMENT, ' + 'path TEXT NOT NULL, ' +
+    'name TEXT NOT NULL, ' + 'size INTEGER, ' + 'timestamp INTEGER, ' + 'UNIQUE(name, path)' + ');'
+    );
   FTransaction.Commit;
 end;
 
 procedure TEagleDB.Open;
 begin
-  if FConnection.Connected
-    then Exit;
+  if FConnection.Connected then
+    Exit;
 
   FConnection.Open;
   FTransaction.StartTransaction;
@@ -88,8 +85,8 @@ end;
 
 procedure TEagleDB.Close;
 begin
-  if not FConnection.Connected
-    then Exit;
+  if not FConnection.Connected then
+    Exit;
 
   if FTransaction.Active then
     FTransaction.Commit;
@@ -97,24 +94,24 @@ begin
   FConnection.Close;
 end;
 
-function TEagleDB.IsOpen: Boolean;
+function TEagleDB.IsOpen: boolean;
 begin
   Result := FConnection.Connected;
 end;
 
-function TEagleDB.GetFiles(const AFilterText: string; const ASearchInPath: Boolean): TEagleFileRecords;
+function TEagleDB.GetFiles(const AFilterText: string; const alsoSearchPath: boolean): TEagleFileRecords;
 var
   query: TSQLQuery;
   filterText: string;
-  itemCount: Integer;
+  itemCount: integer;
 begin
   SetLength(Result, 0);
 
-  if not FConnection.Connected
-    then Open;
+  if not FConnection.Connected then
+    Open;
 
-  if not FTransaction.Active
-    then FTransaction.StartTransaction;
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
 
   query := TSQLQuery.Create(nil);
   try
@@ -124,26 +121,22 @@ begin
     filterText := Trim(AFilterText);
     if filterText = '' then begin
       query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' +
-        'FROM files ORDER BY path, name';
-    end else if ASearchInPath then begin
-      query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' +
-        'FROM files ' +
-        'WHERE (name LIKE :filter OR path LIKE :filter) ' +
-        'ORDER BY path, name';
-      query.ParamByName('filter').AsString := '%' + filterText + '%';
-    end else begin
-      query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' +
-        'FROM files ' +
-        'WHERE name LIKE :filter ' +
-        'ORDER BY path, name';
-      query.ParamByName('filter').AsString := '%' + filterText + '%';
-    end;
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ORDER BY path, name';
+    end else
+      if alsoSearchPath then begin
+        query.SQL.Text :=
+          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ' +
+          'WHERE (name LIKE :filter OR path LIKE :filter) ' + 'ORDER BY path, name';
+        query.ParamByName('filter').AsString := '%' + filterText + '%';
+      end else begin
+        query.SQL.Text :=
+          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp ' + 'FROM files ' +
+          'WHERE name LIKE :filter ' + 'ORDER BY path, name';
+        query.ParamByName('filter').AsString := '%' + filterText + '%';
+      end;
 
     query.Open;
-    while not query.Eof do begin
+    while not query.EOF do begin
       itemCount := Length(Result);
       SetLength(Result, itemCount + 1);
 
@@ -161,22 +154,22 @@ begin
   end;
 end;
 
-procedure TEagleDB.AddFile(name, path: string; size: int64; timestamp: longint);
+procedure TEagleDB.AddFile(Name, path: string; size: int64; timestamp: longint);
 var
   query: TSQLQuery;
 begin
-  if not FConnection.Connected
-    then Open;
+  if not FConnection.Connected then
+    Open;
 
-  if not FTransaction.Active
-    then FTransaction.StartTransaction;
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
 
   query := TSQLQuery.Create(nil);
   try
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
     query.SQL.Text := 'INSERT OR REPLACE INTO files (name, path, size, timestamp) VALUES (:name, :path, :size, :timestamp)';
-    query.ParamByName('name').AsString := name;
+    query.ParamByName('name').AsString := Name;
     query.ParamByName('path').AsString := path;
     query.ParamByName('size').AsLargeInt := size;
     query.ParamByName('timestamp').AsInteger := timestamp;
@@ -189,10 +182,177 @@ begin
   end;
 end;
 
+procedure TEagleDB.DeleteFile(const fullPath: string);
+var
+  query: TSQLQuery;
+  fileName: string;
+  filePath: string;
+begin
+  if not FConnection.Connected then
+    Open;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+
+  if Pos(PathDelim, fullPath) > 0 then begin
+    fileName := ExtractFileName(fullPath);
+    filePath := ExtractFileDir(fullPath);
+  end else begin
+    fileName := fullPath;
+    filePath := '';
+  end;
+
+  query := TSQLQuery.Create(nil);
+  try
+    query.DataBase := FConnection;
+    query.Transaction := FTransaction;
+    query.SQL.Text := 'DELETE FROM files WHERE name = :name AND path = :path';
+    query.ParamByName('name').AsString := fileName;
+    query.ParamByName('path').AsString := filePath;
+    query.ExecSQL;
+
+    FTransaction.Commit;
+    FTransaction.StartTransaction;
+  finally
+    query.Free;
+  end;
+end;
+
+procedure TEagleDB.DeletePath(const fullPath: string);
+var
+  query: TSQLQuery;
+  fileName: string;
+  filePath: string;
+  matchCount: integer;
+  folderPrefix: string;
+begin
+  if fullPath = '' then
+    Exit;
+
+  if not FConnection.Connected then
+    Open;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+
+  if Pos(PathDelim, fullPath) > 0 then begin
+    fileName := ExtractFileName(fullPath);
+    filePath := ExtractFileDir(fullPath);
+  end else begin
+    fileName := fullPath;
+    filePath := '';
+  end;
+
+  query := TSQLQuery.Create(nil);
+  try
+    query.DataBase := FConnection;
+    query.Transaction := FTransaction;
+
+    query.SQL.Text := 'SELECT COUNT(1) AS match_count FROM files WHERE name = :name AND path = :path';
+    query.ParamByName('name').AsString := fileName;
+    query.ParamByName('path').AsString := filePath;
+    query.Open;
+    matchCount := query.FieldByName('match_count').AsInteger;
+    query.Close;
+
+    if matchCount > 0 then begin
+      query.SQL.Text := 'DELETE FROM files WHERE name = :name AND path = :path';
+      query.ParamByName('name').AsString := fileName;
+      query.ParamByName('path').AsString := filePath;
+      query.ExecSQL;
+    end else begin
+      folderPrefix := IncludeTrailingPathDelimiter(fullPath);
+      query.SQL.Text := 'DELETE FROM files WHERE path = :folderPath OR path LIKE :folderPrefix';
+      query.ParamByName('folderPath').AsString := fullPath;
+      query.ParamByName('folderPrefix').AsString := folderPrefix + '%';
+      query.ExecSQL;
+    end;
+
+    FTransaction.Commit;
+    FTransaction.StartTransaction;
+  finally
+    query.Free;
+  end;
+end;
+
+procedure TEagleDB.RenamePath(const oldPath, newPath: string);
+var
+  query: TSQLQuery;
+  oldName, oldDir: string;
+  newName, newDir: string;
+  matchCount: integer;
+  oldPrefix, newPrefix: string;
+begin
+  if (oldPath = '') or (newPath = '') then
+    Exit;
+
+  if not FConnection.Connected then
+    Open;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+
+  if Pos(PathDelim, oldPath) > 0 then begin
+    oldName := ExtractFileName(oldPath);
+    oldDir := ExtractFileDir(oldPath);
+  end else begin
+    oldName := oldPath;
+    oldDir := '';
+  end;
+
+  if Pos(PathDelim, newPath) > 0 then begin
+    newName := ExtractFileName(newPath);
+    newDir := ExtractFileDir(newPath);
+  end else begin
+    newName := newPath;
+    newDir := '';
+  end;
+
+  query := TSQLQuery.Create(nil);
+  try
+    query.DataBase := FConnection;
+    query.Transaction := FTransaction;
+
+    query.SQL.Text := 'SELECT COUNT(1) AS match_count FROM files WHERE name = :name AND path = :path';
+    query.ParamByName('name').AsString := oldName;
+    query.ParamByName('path').AsString := oldDir;
+    query.Open;
+    matchCount := query.FieldByName('match_count').AsInteger;
+    query.Close;
+
+    if matchCount > 0 then begin
+      query.SQL.Text := 'UPDATE files SET name = :newName, path = :newPath WHERE name = :oldName AND path = :oldPath';
+      query.ParamByName('newName').AsString := newName;
+      query.ParamByName('newPath').AsString := newDir;
+      query.ParamByName('oldName').AsString := oldName;
+      query.ParamByName('oldPath').AsString := oldDir;
+      query.ExecSQL;
+    end else begin
+      oldPrefix := IncludeTrailingPathDelimiter(oldPath);
+      newPrefix := IncludeTrailingPathDelimiter(newPath);
+
+      query.SQL.Text :=
+        'UPDATE files ' + 'SET path = CASE ' + 'WHEN path = :oldFolder THEN :newFolder ' +
+        'ELSE REPLACE(path, :oldPrefix, :newPrefix) ' + 'END ' + 'WHERE path = :oldFolder OR path LIKE :oldPrefixLike';
+      query.ParamByName('oldFolder').AsString := oldPath;
+      query.ParamByName('newFolder').AsString := newPath;
+      query.ParamByName('oldPrefix').AsString := oldPrefix;
+      query.ParamByName('newPrefix').AsString := newPrefix;
+      query.ParamByName('oldPrefixLike').AsString := oldPrefix + '%';
+      query.ExecSQL;
+    end;
+
+    FTransaction.Commit;
+    FTransaction.StartTransaction;
+  finally
+    query.Free;
+  end;
+end;
+
 procedure TEagleDB.BulkImportFiles(const AFiles: array of TSearchRec);
 var
   query: TSQLQuery;
-  i: Integer;
+  i: integer;
   fullPath: string;
   fileName: string;
   filePath: string;
@@ -229,8 +389,8 @@ var
   query, deleteQuery: TSQLQuery;
   dbName, dbPath: string;
   fullPath, fileName, filePath: string;
-  i: Integer;
-  found: Boolean;
+  i: integer;
+  found: boolean;
 begin
   query := TSQLQuery.Create(nil);
   deleteQuery := TSQLQuery.Create(nil);
@@ -240,7 +400,7 @@ begin
     query.SQL.Text := 'SELECT name, path FROM files';
     query.Open;
 
-    while not query.Eof do begin
+    while not query.EOF do begin
       dbName := query.FieldByName('name').AsString;
       dbPath := query.FieldByName('path').AsString;
       found := False;
@@ -282,11 +442,11 @@ end;
 
 procedure TEagleDB.SyncFiles(const AFiles: array of TSearchRec);
 begin
-  if not FConnection.Connected
-    then Open;
+  if not FConnection.Connected then
+    Open;
 
-  if not FTransaction.Active
-    then FTransaction.StartTransaction;
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
 
   try
     BulkImportFiles(AFiles);
@@ -295,11 +455,10 @@ begin
     FTransaction.Commit;
     FTransaction.StartTransaction;
   except
-    if FTransaction.Active
-      then FTransaction.Rollback;
+    if FTransaction.Active then
+      FTransaction.Rollback;
     raise;
   end;
 end;
 
 end.
-
