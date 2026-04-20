@@ -37,6 +37,7 @@ type
   TWatchRenameEventHandler = procedure(const AOldPath, ANewPath: string) of object;
   TWatchLogHandler = procedure(const AMessage: string) of object;
   TWatchInitialScanHandler = procedure(const AFiles: array of TSearchRec) of object;
+  TWatchScanProgressHandler = procedure(const ACount: integer) of object;
 
   pinotify_event = ^inotify_event;
 
@@ -55,6 +56,7 @@ type
 
     FPaths: array of string;
     FFoundFiles: array of TSearchRec;
+    FFoundFilesCount: integer;
     FPendingInitialScanFiles: array of TSearchRec;
     FWatchedFolders: specialize TDictionary<cint, string>;
     FPendingMoves: specialize TDictionary<cuint32, TPendingMove>;
@@ -66,8 +68,11 @@ type
     FOnAttributeChange: TWatchEventHandler;
     FOnLog: TWatchLogHandler;
     FOnInitialScan: TWatchInitialScanHandler;
+    FOnScanProgress: TWatchScanProgressHandler;
 
     FPendingLogMessage: string;
+    FPendingScanProgressCount: integer;
+    FLastProgressTime: QWord;
     FPendingCreatePath: string;
     FPendingDeletePath: string;
     FPendingRenameOldPath: string;
@@ -91,11 +96,14 @@ type
     procedure DispatchDelete;
     procedure DispatchRename;
     procedure DispatchInitialScan;
+    procedure DispatchScanProgress;
+    procedure QueueScanProgressIfDue;
     procedure QueueLog(const AMessage: string);
     procedure QueueCreate(const APath: string);
     procedure QueueDelete(const APath: string);
     procedure QueueRename(const AOldPath, ANewPath: string);
     procedure QueueInitialScan(const AFiles: array of TSearchRec);
+    procedure AppendFoundFile(const AFile: TSearchRec);
 
     function GetEventFileName(event: pinotify_event): string;
 
@@ -125,6 +133,7 @@ type
 
     procedure SetOnLog(const AHandler: TWatchLogHandler);
     procedure SetOnInitialScan(const AHandler: TWatchInitialScanHandler);
+    procedure SetOnScanProgress(const AHandler: TWatchScanProgressHandler);
   end;
 
 implementation
@@ -195,6 +204,11 @@ begin
   FOnInitialScan := AHandler;
 end;
 
+procedure TWatchThread.SetOnScanProgress(const AHandler: TWatchScanProgressHandler);
+begin
+  FOnScanProgress := AHandler;
+end;
+
 procedure TWatchThread.DispatchLog;
 begin
   if Assigned(FOnLog) then
@@ -250,6 +264,38 @@ begin
     FOnInitialScan(FPendingInitialScanFiles);
 end;
 
+procedure TWatchThread.DispatchScanProgress;
+begin
+  if Assigned(FOnScanProgress) then
+    FOnScanProgress(FPendingScanProgressCount);
+end;
+
+procedure TWatchThread.QueueScanProgressIfDue;
+begin
+  if (GetTickCount64 - FLastProgressTime) >= 5000 then begin
+    FLastProgressTime := GetTickCount64;
+    FPendingScanProgressCount := FFoundFilesCount;
+    Synchronize(@DispatchScanProgress);
+  end;
+end;
+
+procedure TWatchThread.AppendFoundFile(const AFile: TSearchRec);
+var
+  newCapacity: integer;
+begin
+  if FFoundFilesCount >= Length(FFoundFiles) then begin
+    if Length(FFoundFiles) = 0 then
+      newCapacity := 1024
+    else
+      newCapacity := Length(FFoundFiles) * 2;
+
+    SetLength(FFoundFiles, newCapacity);
+  end;
+
+  FFoundFiles[FFoundFilesCount] := AFile;
+  Inc(FFoundFilesCount);
+end;
+
 function TWatchThread.AddWatchDir(const dirPath: string): boolean;
 var
   wd: cint;
@@ -275,7 +321,6 @@ procedure TWatchThread.AddWatchRecursive(fd: cint; const rootPath: string);
 var
   sr: TSearchRec;
   fileEntry: TSearchRec;
-  fileCount: integer;
   childPath: string;
 begin
   AddWatchDir(rootPath);
@@ -294,9 +339,8 @@ begin
 
       fileEntry := sr;
       fileEntry.Name := childPath;
-      fileCount := Length(FFoundFiles);
-      SetLength(FFoundFiles, fileCount + 1);
-      FFoundFiles[fileCount] := fileEntry;
+      AppendFoundFile(fileEntry);
+      QueueScanProgressIfDue;
     until FindNext(sr) <> 0;
   finally
     FindClose(sr);
@@ -565,12 +609,16 @@ var
 begin
   Result := True;
 
+  FFoundFilesCount := 0;
   SetLength(FFoundFiles, 0);
   FWatchedFolders.Clear;
   FPendingMoves.Clear;
+  FLastProgressTime := GetTickCount64;
 
   for i := Low(FPaths) to High(FPaths) do
     AddWatchRecursive(eventStreamHandle, FPaths[i]);
+
+  SetLength(FFoundFiles, FFoundFilesCount);
   QueueInitialScan(FFoundFiles);
 
   Result := FWatchedFolders.Count > 0;

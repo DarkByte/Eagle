@@ -5,7 +5,9 @@ unit EagleDB;
 interface
 
 uses
-  Classes, SysUtils, SQLite3Conn, SQLDB;
+  Classes, SysUtils,
+  TimeCheck,
+  SQLite3Conn, SQLDB;
 
 type
   TEagleFileRecord = record
@@ -134,15 +136,19 @@ begin
       end;
 
     query.Open;
-    while not query.EOF do begin
-      itemCount := Length(Result);
-      SetLength(Result, itemCount + 1);
+    query.Last;
+    itemCount := query.RecordCount;
+    SetLength(Result, itemCount);
+    query.First;
 
+    itemCount := 0;
+    while not query.EOF do begin
       Result[itemCount].Name := query.FieldByName('name').AsString;
       Result[itemCount].Path := query.FieldByName('path').AsString;
       Result[itemCount].Size := query.FieldByName('size').AsLargeInt;
       Result[itemCount].Time := query.FieldByName('timestamp').AsInteger;
 
+      Inc(itemCount);
       query.Next;
     end;
 
@@ -360,22 +366,27 @@ begin
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
     query.SQL.Text := 'INSERT OR REPLACE INTO files (name, path, size, timestamp) VALUES (:name, :path, :size, :timestamp)';
+    query.Prepare;
 
-    for i := Low(AFiles) to High(AFiles) do begin
-      fullPath := AFiles[i].Name;
-      if Pos(PathDelim, fullPath) > 0 then begin
-        fileName := ExtractFileName(fullPath);
-        filePath := ExtractFileDir(fullPath);
-      end else begin
-        fileName := fullPath;
-        filePath := '';
+    try
+      for i := Low(AFiles) to High(AFiles) do begin
+        fullPath := AFiles[i].Name;
+        if Pos(PathDelim, fullPath) > 0 then begin
+          fileName := ExtractFileName(fullPath);
+          filePath := ExtractFileDir(fullPath);
+        end else begin
+          fileName := fullPath;
+          filePath := '';
+        end;
+
+        query.ParamByName('name').AsString := fileName;
+        query.ParamByName('path').AsString := filePath;
+        query.ParamByName('size').AsLargeInt := AFiles[i].Size;
+        query.ParamByName('timestamp').AsInteger := AFiles[i].Time;
+        query.ExecSQL;
       end;
-
-      query.ParamByName('name').AsString := fileName;
-      query.ParamByName('path').AsString := filePath;
-      query.ParamByName('size').AsLargeInt := AFiles[i].Size;
-      query.ParamByName('timestamp').AsInteger := AFiles[i].Time;
-      query.ExecSQL;
+    finally
+      query.UnPrepare;
     end;
   finally
     query.Free;
@@ -447,11 +458,18 @@ begin
     FTransaction.StartTransaction;
 
   try
-    BulkImportFiles(AFiles);
+    benchStamp.Start('DB Delete Orphaned');
     BulkDeleteOrphanedFiles(AFiles);
+    benchStamp.Stop('DB Delete Orphaned');
 
+    benchStamp.Start('DB Bulk Import');
+    BulkImportFiles(AFiles);
+    benchStamp.Stop('DB Bulk Import');
+
+    benchStamp.Start('DB Commit + StartTransaction');
     FTransaction.Commit;
     FTransaction.StartTransaction;
+    benchStamp.Stop('DB Commit + StartTransaction');
   except
     if FTransaction.Active then
       FTransaction.Rollback;

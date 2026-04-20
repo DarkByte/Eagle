@@ -24,6 +24,7 @@ type
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
+    procedure FormClick(Sender: TObject);
 
     procedure FormCreate;
     procedure FormDestroy;
@@ -40,6 +41,7 @@ type
     procedure HandleDelete(const APath: string);
     procedure HandleRename(const AOldPath, ANewPath: string);
     procedure HandleInitialScan(const AFiles: array of TSearchRec);
+    procedure HandleScanProgress(const ACount: integer);
 
     procedure SetupWatchThread;
     procedure SetupDB;
@@ -93,6 +95,7 @@ begin
   FWatchThread.SetOnDelete(@HandleDelete);
   FWatchThread.SetOnRename(@HandleRename);
   FWatchThread.SetOnInitialScan(@HandleInitialScan);
+  FWatchThread.SetOnScanProgress(@HandleScanProgress);
 end;
 
 procedure TForm1.StopWatching;
@@ -116,6 +119,7 @@ end;
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);
 begin
+  benchStamp.Start('Building file list');
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
@@ -278,6 +282,7 @@ procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; C
 var
   NodeIndex: integer;
 begin
+  benchStamp.Resume('FileTree GetText');
   CellText := '';
 
   if Node = nil then
@@ -293,6 +298,7 @@ begin
     2: CellText := IntToStr(FFileRecords[NodeIndex].Size);
     3: CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time))
   end;
+  benchStamp.Stop('FileTree GetText');
 end;
 
 procedure TForm1.PopulateFileTree;
@@ -302,11 +308,18 @@ begin
   fileTree.Refresh;
 end;
 
+// TEST
+procedure TForm1.FormClick(Sender: TObject);
+begin
+  Memo1.Lines.Add(benchStamp.GetAllTimestamps);
+end;
+
 // TWatchThread delegate methods
 procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
   FEagleDB.SyncFiles(AFiles);
   RefreshFileTree;
+  benchStamp.Stop('Building file list');
   Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
 end;
 
@@ -344,6 +357,11 @@ end;
 procedure TForm1.HandleLog(const AMessage: string);
 begin
   Memo1.Lines.Add(AMessage);
+end;
+
+procedure TForm1.HandleScanProgress(const ACount: integer);
+begin
+  Memo1.Lines.Text := '[SCAN] ' + IntToStr(ACount) + ' files found so far...';
 end;
 
 end.
