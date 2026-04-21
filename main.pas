@@ -128,7 +128,6 @@ end;
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);
 begin
-  benchStamp.Start('Building file list');
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
@@ -330,7 +329,6 @@ procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; C
 var
   NodeIndex: integer;
 begin
-  benchStamp.Resume('FileTree GetText');
   CellText := '';
 
   if Node = nil then
@@ -346,7 +344,6 @@ begin
     2: CellText := IntToStr(FFileRecords[NodeIndex].Size);
     3: CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time))
   end;
-  benchStamp.Stop('FileTree GetText');
 end;
 
 procedure TForm1.PopulateFileTree;
@@ -365,9 +362,9 @@ end;
 // TWatchThread delegate methods
 procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
-  FEagleDB.SyncFiles(AFiles);
+  Memo1.Lines.Add('Found ' + IntToStr(Length(AFiles)) + ' files!');
+  FEagleDB.SyncFileRecords(AFiles);
   RefreshFileTree;
-  benchStamp.Stop('Building file list');
   Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
 end;
 

@@ -59,6 +59,7 @@ type
     FFoundFilesCount: integer;
     FPendingInitialScanFiles: array of TSearchRec;
     FWatchedFolders: specialize TDictionary<cint, string>;
+    FWatchedFolderPaths: specialize TDictionary<string, cint>;
     FPendingMoves: specialize TDictionary<cuint32, TPendingMove>;
 
     FOnCreate: TWatchEventHandler;
@@ -78,6 +79,7 @@ type
     FPendingRenameOldPath: string;
     FPendingRenameNewPath: string;
 
+    function NormalizePathKey(const APath: string): string;
     function AddWatchDir(const dirPath: string): boolean;
     procedure AddFileToList(fileEntry: TSearchRec; childPath: String);
     procedure AddWatchRecursive(fd: cint; const rootPath: string);
@@ -148,6 +150,7 @@ function inotify_rm_watch(fd: cint; wd: cint): cint; cdecl; external 'libc' name
 constructor TWatchThread.Create;
 begin
   FWatchedFolders := specialize TDictionary<cint, string>.Create;
+  FWatchedFolderPaths := specialize TDictionary<string, cint>.Create;
   FPendingMoves := specialize TDictionary<cuint32, TPendingMove>.Create;
 
   inherited Create(True);
@@ -155,6 +158,7 @@ end;
 
 destructor TWatchThread.Destroy;
 begin
+  FWatchedFolderPaths.Free;
   FWatchedFolders.Free;
   FPendingMoves.Free;
 
@@ -273,10 +277,12 @@ end;
 
 procedure TWatchThread.QueueScanProgressIfDue;
 begin
-  if (GetTickCount64 - FLastProgressTime) >= 5000 then begin
-    FLastProgressTime := GetTickCount64;
-    FPendingScanProgressCount := FFoundFilesCount;
-    Synchronize(@DispatchScanProgress);
+  if (FFoundFilesCount and $7FFF) = 0 then begin
+    if (GetTickCount64 - FLastProgressTime) >= 5000 then begin
+      FLastProgressTime := GetTickCount64;
+      FPendingScanProgressCount := FFoundFilesCount;
+      Synchronize(@DispatchScanProgress);
+    end;
   end;
 end;
 
@@ -297,27 +303,42 @@ begin
   Inc(FFoundFilesCount);
 end;
 
+function TWatchThread.NormalizePathKey(const APath: string): string;
+begin
+  Result := ExcludeTrailingPathDelimiter(APath);
+end;
+
 function TWatchThread.AddWatchDir(const dirPath: string): boolean;
 var
   wd: cint;
+  existingWD: cint;
   existingPath: string;
+  normalizedPath: string;
 begin
   Result := False;
 
-  for existingPath in FWatchedFolders.Values do
-    if SameText(existingPath, dirPath) then begin
-      Result := True;
-      Exit;
-    end;
+  normalizedPath := NormalizePathKey(dirPath);
+  if normalizedPath = '' then
+    Exit;
+
+  if FWatchedFolderPaths.TryGetValue(normalizedPath, existingWD) then begin
+    Result := True;
+    Exit;
+  end;
 
   wd := inotify_add_watch(eventStreamHandle, PChar(dirPath), DIR_WATCH_MASK);
   if wd < 0 then
     Exit;
 
+  if FWatchedFolders.TryGetValue(wd, existingPath) then
+    FWatchedFolderPaths.Remove(NormalizePathKey(existingPath));
+
   FWatchedFolders.AddOrSetValue(wd, dirPath);
+  FWatchedFolderPaths.AddOrSetValue(normalizedPath, wd);
   Result := True;
 end;
 
+// notify main thread of progress - will remove after testing
 procedure TWatchThread.AddFileToList(fileEntry: TSearchRec; childPath: String);
 begin
   fileEntry.Name := childPath;
@@ -328,18 +349,18 @@ end;
 procedure TWatchThread.AddWatchRecursive(fd: cint; const rootPath: string);
 var
   sr: TSearchRec;
-  fileEntry: TSearchRec;
-  childPath: string;
+  childPath, rootPathWithDelim: string;
 begin
   AddWatchDir(rootPath);
 
-  if FindFirst(IncludeTrailingPathDelimiter(rootPath) + '*', faAnyFile, sr) = 0 then
+  rootPathWithDelim := IncludeTrailingPathDelimiter(rootPath);
+  if FindFirst(rootPathWithDelim + '*', faAnyFile, sr) = 0 then
   try
     repeat
       if (sr.Name = '.') or (sr.Name = '..') then
         Continue;
 
-      childPath := IncludeTrailingPathDelimiter(rootPath) + sr.Name;
+      childPath := rootPathWithDelim + sr.Name;
       if (sr.Attr and faDirectory) <> 0 then begin
         AddWatchRecursive(fd, childPath);
         Continue;
@@ -452,6 +473,10 @@ begin
       FWatchedFolders[watchHandle] := newPath;
     end;
   end;
+
+  FWatchedFolderPaths.Clear;
+  for watchHandle in FWatchedFolders.Keys do
+    FWatchedFolderPaths.AddOrSetValue(NormalizePathKey(FWatchedFolders[watchHandle]), watchHandle);
 end;
 
 procedure TWatchThread.QueueInitialScan(const AFiles: array of TSearchRec);
@@ -617,6 +642,7 @@ begin
   FFoundFilesCount := 0;
   SetLength(FFoundFiles, 0);
   FWatchedFolders.Clear;
+  FWatchedFolderPaths.Clear;
   FPendingMoves.Clear;
   FLastProgressTime := GetTickCount64;
 
