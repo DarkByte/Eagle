@@ -6,7 +6,11 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
+  Process,
+  LCLIntf,
+  ExtCtrls, Menus,
   laz.VirtualTrees,
+  utils,
   TimeCheck,
   WatchThread, EagleDB;
 
@@ -21,9 +25,14 @@ type
     fileTree: TLazVirtualStringTree;
     Label1: TLabel;
     Memo1: TMemo;
+    fileTreeMenu: TPopupMenu;
+    menuOpenFolder: TMenuItem;
+    timerFilterDebounce: TTimer;
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
+    procedure menuOpenFolderClick(Sender: TObject);
+    procedure timerFilterDebounceTimer(Sender: TObject);
     procedure FormClick(Sender: TObject);
 
     procedure FormCreate;
@@ -73,9 +82,9 @@ begin
   FSortDirection := sdAscending;
 
   SetupDB;
-  SetupFileTree;
   SetupWatchThread;
 
+  SetupFileTree;
   RefreshFileTree;
 end;
 
@@ -132,6 +141,43 @@ end;
 
 procedure TForm1.edtFilterChange(Sender: TObject);
 begin
+  timerFilterDebounce.Enabled := False;
+  timerFilterDebounce.Enabled := True;
+end;
+
+procedure TForm1.menuOpenFolderClick(Sender: TObject);
+var
+  selectedNode: PVirtualNode;
+  nodeIndex: integer;
+  folderUrl: string;
+  folderPath: string;
+  opened: boolean;
+begin
+  selectedNode := fileTree.GetFirstSelected;
+  if selectedNode = nil then
+    selectedNode := fileTree.FocusedNode;
+
+  if selectedNode = nil then
+    Exit;
+
+  nodeIndex := fileTree.AbsoluteIndex(selectedNode);
+  if (nodeIndex < 0) or (nodeIndex >= Length(FFileRecords)) then
+    Exit;
+
+  folderPath := FFileRecords[nodeIndex].Path;
+  if (folderPath = '') or not DirectoryExists(folderPath) then
+    Exit;
+
+  folderUrl := 'file://' + EncodePathForFileURL(folderPath);
+
+  opened := OpenURL(folderUrl);
+  if not opened then
+    opened := OpenDocument(folderPath);
+end;
+
+procedure TForm1.timerFilterDebounceTimer(Sender: TObject);
+begin
+  timerFilterDebounce.Enabled := False;
   RefreshFileTree;
 end;
 
@@ -149,6 +195,8 @@ begin
 end;
 
 procedure TForm1.SetupFileTree;
+const
+  widths: array of Integer = (250, 80, 120);
 var
   Column: TVirtualTreeColumn;
 begin
@@ -156,19 +204,19 @@ begin
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Name';
-  Column.Width := 150;
+  Column.Width := fileTree.ClientWidth - SumArray(widths) - 16;
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Path';
-  Column.Width := 300;
+  Column.Width := widths[0];
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Size';
-  Column.Width := 80;
+  Column.Width := widths[1];
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Date modified';
-  Column.Width := 120;
+  Column.Width := widths[2];
 
   fileTree.Header.MainColumn := 0;
   fileTree.TreeOptions.SelectionOptions := fileTree.TreeOptions.SelectionOptions + [toFullRowSelect];

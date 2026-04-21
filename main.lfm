@@ -50,8 +50,12 @@ object Form1: TForm1
     Header.Columns = <>
     Header.MainColumn = -1
     Header.Options = [hoColumnResize, hoDblClickResize, hoDrag, hoShowSortGlyphs, hoVisible, hoAutoSpring]
+    PopupMenu = fileTreeMenu
     TabOrder = 3
-    TreeOptions.PaintOptions = [toShowButtons, toShowDropmark, toShowRoot, toThemeAware, toUseBlendedImages]
+    TreeOptions.AutoOptions = [toAutoSort, toAutoTristateTracking, toAutoDeleteMovedNodes, toAutoChangeScale]
+    TreeOptions.MiscOptions = [toFullRepaintOnResize, toGridExtensions, toInitOnSave, toToggleOnDblClick, toWheelPanning, toEditOnClick]
+    TreeOptions.PaintOptions = [toShowButtons, toShowDropmark, toThemeAware, toUseBlendedImages]
+    TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect, toSimpleDrawSelection, toAlwaysSelectNode]
   end
   object Label1: TLabel
     Left = 16
@@ -155,5 +159,20 @@ object Form1: TForm1
     }
     TabOrder = 5
     OnClick = btnEagleClick
+  end
+  object timerFilterDebounce: TTimer
+    Enabled = False
+    Interval = 250
+    OnTimer = timerFilterDebounceTimer
+    Left = 576
+    Top = 16
+  end
+  object fileTreeMenu: TPopupMenu
+    Left = 576
+    Top = 80
+    object menuOpenFolder: TMenuItem
+      Caption = '&Open in folder'
+      OnClick = menuOpenFolderClick
+    end
   end
 end

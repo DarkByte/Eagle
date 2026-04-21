@@ -79,6 +79,7 @@ type
     FPendingRenameNewPath: string;
 
     function AddWatchDir(const dirPath: string): boolean;
+    procedure AddFileToList(fileEntry: TSearchRec; childPath: String);
     procedure AddWatchRecursive(fd: cint; const rootPath: string);
 
     function GetWatchPath(wd: cint): string;
@@ -317,6 +318,13 @@ begin
   Result := True;
 end;
 
+procedure TWatchThread.AddFileToList(fileEntry: TSearchRec; childPath: String);
+begin
+  fileEntry.Name := childPath;
+  AppendFoundFile(fileEntry);
+  QueueScanProgressIfDue;
+end;
+
 procedure TWatchThread.AddWatchRecursive(fd: cint; const rootPath: string);
 var
   sr: TSearchRec;
@@ -337,10 +345,7 @@ begin
         Continue;
       end;
 
-      fileEntry := sr;
-      fileEntry.Name := childPath;
-      AppendFoundFile(fileEntry);
-      QueueScanProgressIfDue;
+      AddFileToList(sr, childPath);
     until FindNext(sr) <> 0;
   finally
     FindClose(sr);
