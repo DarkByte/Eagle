@@ -7,7 +7,7 @@ Obviously inspired by Everything - which I missed since moving to Linux.
 
 ## Screenshots
 
-![Main window and options](assets/eagle_shot01.jpg.png.png "Main window and options")
+![Main window and options](assets/eagle_shot01.png "Main window and options")
 
 ## Features
 
