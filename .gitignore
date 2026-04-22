@@ -1,4 +1,4 @@
-*.sqlite
+*.sqlite*
 eagle
 TimeCheck.pas
 MyObjectStringList.pas

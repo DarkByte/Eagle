@@ -7,6 +7,7 @@ interface
 uses
   Classes, SysUtils;
 
+function CurrentTime: String;
 function EndsWith(const Value, Suffix: string): boolean;
 function IsIgnoredTempFileName(const FileName: string): boolean;
 
@@ -14,6 +15,11 @@ function EncodePathForFileURL(const APath: string): string;
 function SumArray(list: array of integer): integer;
 
 implementation
+
+function CurrentTime: String;
+begin
+  Result := FormatDateTime('dd.mm hh:nn:ss.zzz', Now);
+end;
 
 function EndsWith(const Value, Suffix: string): boolean;
 begin

@@ -84,8 +84,10 @@ begin
   SetupDB;
   SetupWatchThread;
 
+  benchStamp.InsertTime('Starting from DB');
   SetupFileTree;
   RefreshFileTree;
+  benchStamp.InsertTime('Finished from DB');
 end;
 
 procedure TForm1.FormDestroy;
@@ -128,6 +130,7 @@ end;
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);
 begin
+  benchStamp.InsertTime('Starting watchThread');
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
@@ -362,9 +365,16 @@ end;
 // TWatchThread delegate methods
 procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
+  benchStamp.InsertTime('Finished watchThread');
+
   Memo1.Lines.Add('Found ' + IntToStr(Length(AFiles)) + ' files!');
-  FEagleDB.SyncFileRecords(AFiles);
+
+  benchStamp.InsertTime('Updating DB');
+  FEagleDB.SyncFiles(AFiles);
+  benchStamp.InsertTime('Updated DB');
+
   RefreshFileTree;
+
   Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
 end;
 
@@ -406,7 +416,7 @@ end;
 
 procedure TForm1.HandleScanProgress(const ACount: integer);
 begin
-  Memo1.Lines.Text := '[SCAN] ' + IntToStr(ACount) + ' files found so far...';
+  Memo1.Lines.Add('[SCAN] ' + IntToStr(ACount) + ' files found so far...');
 end;
 
 end.

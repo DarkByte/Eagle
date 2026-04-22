@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils,
-  SQLite3Conn, SQLDB;
+  SQLite3Conn, SQLDB, sqlite3dyn;
 
 type
   TEagleFileRecord = record
@@ -25,7 +25,6 @@ type
     FTransaction: TSQLTransaction;
     procedure EnsureSchema;
     procedure BulkImportFiles(const AFiles: array of TSearchRec);
-    procedure BulkDeleteOrphanedFiles(const AFiles: array of TSearchRec);
   public
     constructor Create(const ADBPath: string = 'eagle.sqlite');
     destructor Destroy; override;
@@ -40,10 +39,12 @@ type
     procedure DeletePath(const fullPath: string);
     procedure RenamePath(const oldPath, newPath: string);
 
-    procedure SyncFileRecords(const AFiles: array of TSearchRec);
+    procedure SyncFiles(const AFiles: array of TSearchRec);
   end;
 
 implementation
+
+uses TimeCheck;
 
 constructor TEagleDB.Create(const ADBPath: string);
 begin
@@ -81,6 +82,11 @@ begin
     Exit;
 
   FConnection.Open;
+
+  // Set pragmas directly via SQLite handle - bypasses SQLDB transaction state
+  sqlite3_exec(FConnection.Handle, 'PRAGMA journal_mode = WAL', nil, nil, nil);
+  sqlite3_exec(FConnection.Handle, 'PRAGMA synchronous = NORMAL', nil, nil, nil);
+
   FTransaction.StartTransaction;
   EnsureSchema;
 end;
@@ -365,7 +371,7 @@ begin
   try
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
-    query.SQL.Text := 'INSERT OR REPLACE INTO files (name, path, size, timestamp) VALUES (:name, :path, :size, :timestamp)';
+    query.SQL.Text := 'INSERT INTO files (name, path, size, timestamp) VALUES (:name, :path, :size, :timestamp)';
     query.Prepare;
 
     try
@@ -393,69 +399,10 @@ begin
   end;
 end;
 
-procedure TEagleDB.BulkDeleteOrphanedFiles(const AFiles: array of TSearchRec);
-var
-  query, deleteQuery: TSQLQuery;
-  dbName, dbPath: string;
-  fullPath, fileName, filePath: string;
-  i: integer;
-  found: boolean;
-begin
-  query := TSQLQuery.Create(nil);
-  deleteQuery := TSQLQuery.Create(nil);
-  try
-    query.DataBase := FConnection;
-    query.Transaction := FTransaction;
-    query.SQL.Text := 'SELECT name, path FROM files';
-    query.Open;
-
-    while not query.EOF do begin
-      dbName := query.FieldByName('name').AsString;
-      dbPath := query.FieldByName('path').AsString;
-      found := False;
-
-      for i := Low(AFiles) to High(AFiles) do begin
-        fullPath := AFiles[i].Name;
-        if Pos(PathDelim, fullPath) > 0 then begin
-          fileName := ExtractFileName(fullPath);
-          filePath := ExtractFileDir(fullPath);
-        end else begin
-          fileName := fullPath;
-          filePath := '';
-        end;
-
-        if (dbName = fileName) and (dbPath = filePath) then begin
-          found := True;
-          Break;
-        end;
-      end;
-
-      if not found then begin
-        deleteQuery.DataBase := FConnection;
-        deleteQuery.Transaction := FTransaction;
-        deleteQuery.SQL.Text := 'DELETE FROM files WHERE name = :name AND path = :path';
-        deleteQuery.ParamByName('name').AsString := dbName;
-        deleteQuery.ParamByName('path').AsString := dbPath;
-        deleteQuery.ExecSQL;
-      end;
-
-      query.Next;
-    end;
-
-    query.Close;
-  finally
-    query.Free;
-    deleteQuery.Free;
-  end;
-end;
-
-procedure TEagleDB.SyncFileRecords(const AFiles: array of TSearchRec);
+// full nuclear
+procedure TEagleDB.SyncFiles(const AFiles: array of TSearchRec);
 var
   query: TSQLQuery;
-  i: integer;
-  fullPath: string;
-  fileName: string;
-  filePath: string;
 begin
   if not FConnection.Connected then
     Open;
@@ -464,74 +411,23 @@ begin
     FTransaction.StartTransaction;
 
   try
-    // Create temporary table with current files from filesystem
+    // Delete all files from the table
     query := TSQLQuery.Create(nil);
     try
       query.DataBase := FConnection;
       query.Transaction := FTransaction;
-      query.SQL.Text := 'CREATE TEMP TABLE sync_files (name TEXT, path TEXT)';
+      query.SQL.Text := 'DELETE FROM files';
       query.ExecSQL;
     finally
       query.Free;
     end;
 
-    // Insert all current filesystem files into temp table
-    if Length(AFiles) > 0 then begin
-      query := TSQLQuery.Create(nil);
-      try
-        query.DataBase := FConnection;
-        query.Transaction := FTransaction;
-        query.SQL.Text := 'INSERT INTO sync_files (name, path) VALUES (:name, :path)';
-        query.Prepare;
-
-        for i := Low(AFiles) to High(AFiles) do begin
-          fullPath := AFiles[i].Name;
-          if Pos(PathDelim, fullPath) > 0 then begin
-            fileName := ExtractFileName(fullPath);
-            filePath := ExtractFileDir(fullPath);
-          end else begin
-            fileName := fullPath;
-            filePath := '';
-          end;
-
-          query.ParamByName('name').AsString := fileName;
-          query.ParamByName('path').AsString := filePath;
-          query.ExecSQL;
-        end;
-
-        query.UnPrepare;
-      finally
-        query.Free;
-      end;
-    end;
-
-    // Delete orphaned files (files in DB but not in filesystem)
-    query := TSQLQuery.Create(nil);
-    try
-      query.DataBase := FConnection;
-      query.Transaction := FTransaction;
-      query.SQL.Text := 'DELETE FROM files WHERE (name, path) NOT IN (SELECT name, path FROM sync_files)';
-      query.ExecSQL;
-    finally
-      query.Free;
-    end;
-
-    // Clean up temp table
-    query := TSQLQuery.Create(nil);
-    try
-      query.DataBase := FConnection;
-      query.Transaction := FTransaction;
-      query.SQL.Text := 'DROP TABLE sync_files';
-      query.ExecSQL;
-    finally
-      query.Free;
-    end;
-
-    // Import/update files from filesystem
+    // Populate with new data
     BulkImportFiles(AFiles);
-
     FTransaction.Commit;
-    FTransaction.StartTransaction;
+    FConnection.ExecuteDirect('PRAGMA wal_checkpoint(TRUNCATE)');
+    if not FTransaction.Active then
+      FTransaction.StartTransaction;
   except
     if FTransaction.Active then
       FTransaction.Rollback;
