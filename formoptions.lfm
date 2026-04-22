@@ -1,0 +1,108 @@
+object OptionsForm: TOptionsForm
+  Left = 480
+  Height = 335
+  Top = 1330
+  Width = 516
+  BorderStyle = bsDialog
+  Caption = 'Options'
+  ClientHeight = 335
+  ClientWidth = 516
+  LCLVersion = '4.6.0.0'
+  OnShow = FormShow
+  object btnSave: TButton
+    Left = 433
+    Height = 31
+    Top = 297
+    Width = 75
+    Anchors = [akRight, akBottom]
+    Caption = 'Save'
+    TabOrder = 0
+    OnClick = btnSaveClick
+  end
+  object pages: TPageControl
+    Left = 8
+    Height = 280
+    Top = 8
+    Width = 500
+    ActivePage = tabLocations
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.CellAlignHorizontal = ccaLeftTop
+    BorderSpacing.CellAlignVertical = ccaLeftTop
+    Options = [nboDoChangeOnSetIndex]
+    Style = tsFlatButtons
+    TabIndex = 0
+    TabOrder = 1
+    object tabLocations: TTabSheet
+      Caption = 'Locations'
+      ClientHeight = 244
+      ClientWidth = 490
+      object pathListBox: TListBox
+        Left = 16
+        Height = 111
+        Top = 32
+        Width = 376
+        ExtendedSelect = False
+        Items.Strings = (
+          '/mnt/Dogzilla/__LIBRARY'
+          '/mnt/Detritus'
+        )
+        ItemHeight = 21
+        Style = lbOwnerDrawFixed
+        TabOrder = 0
+        OnSelectionChange = pathListBoxSelectionChange
+      end
+      object Label1: TLabel
+        Left = 16
+        Height = 19
+        Top = 8
+        Width = 102
+        Caption = 'Folders to watch:'
+      end
+      object btnPathAdd: TButton
+        Left = 400
+        Height = 31
+        Top = 32
+        Width = 88
+        Caption = 'Add'
+        TabOrder = 1
+        OnClick = btnPathAddClick
+      end
+      object btnPathOptions: TButton
+        Left = 400
+        Height = 31
+        Top = 72
+        Width = 88
+        Caption = 'Options'
+        Enabled = False
+        TabOrder = 2
+      end
+      object btnPathRemove: TButton
+        Left = 400
+        Height = 31
+        Top = 112
+        Width = 88
+        Caption = 'Remove'
+        Enabled = False
+        TabOrder = 3
+        OnClick = btnPathRemoveClick
+      end
+      object cbRecursive: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 144
+        Width = 129
+        Caption = 'Watch recursively'
+        Checked = True
+        State = cbChecked
+        TabOrder = 4
+        OnChange = cbRecursiveChange
+      end
+    end
+    object tabSearch: TTabSheet
+      Caption = 'Search'
+    end
+    object tabPreferences: TTabSheet
+      Caption = 'Preferences'
+    end
+  end
+end

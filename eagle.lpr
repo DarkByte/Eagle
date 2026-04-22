@@ -12,7 +12,7 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms, Dialogs, SysUtils, BaseUnix,
   TimeCheck,
-  main, EagleDB
+  main, EagleDB, formOptions
   { you can add units after this };
 
 {$R *.res}

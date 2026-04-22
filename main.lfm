@@ -1,48 +1,40 @@
 object Form1: TForm1
   Left = 359
-  Height = 550
+  Height = 520
   Top = 1330
   Width = 1082
   Caption = 'Eagle'
-  ClientHeight = 550
+  ClientHeight = 520
   ClientWidth = 1082
+  Menu = MainMenu1
   LCLVersion = '4.6.0.0'
   OnClick = FormClick
   OnCreate = FormCreate
   object Memo1: TMemo
-    Left = 16
-    Height = 456
-    Top = 80
+    Left = 776
+    Height = 488
+    Top = 28
     Width = 299
-    Anchors = [akTop, akLeft, akBottom]
+    Anchors = [akTop, akRight, akBottom]
     Font.Height = -12
     Font.Name = 'Sans'
     ParentFont = False
     TabOrder = 0
   end
-  object edtPathToEagle: TEdit
-    Left = 16
-    Height = 31
-    Top = 16
-    Width = 267
-    AutoSize = False
-    TabOrder = 1
-    Text = '/mnt/Dogzilla/__LIBRARY/'
-  end
   object edtFilter: TEdit
-    Left = 332
+    Left = 0
     Height = 31
-    Top = 16
-    Width = 668
+    Top = 0
+    Width = 584
     Anchors = [akTop, akLeft, akRight]
-    TabOrder = 2
+    TabOrder = 1
     OnChange = edtFilterChange
   end
   object fileTree: TLazVirtualStringTree
-    Left = 332
+    Left = 0
     Height = 488
-    Top = 48
-    Width = 733
+    Top = 32
+    Width = 768
     Anchors = [akTop, akLeft, akRight, akBottom]
     DefaultNodeHeight = 19
     DefaultText = 'Node'
@@ -51,36 +43,38 @@ object Form1: TForm1
     Header.MainColumn = -1
     Header.Options = [hoColumnResize, hoDblClickResize, hoDrag, hoShowSortGlyphs, hoVisible, hoAutoSpring]
     PopupMenu = fileTreeMenu
-    TabOrder = 3
+    TabOrder = 2
     TreeOptions.AutoOptions = [toAutoSort, toAutoTristateTracking, toAutoDeleteMovedNodes, toAutoChangeScale]
     TreeOptions.MiscOptions = [toFullRepaintOnResize, toGridExtensions, toInitOnSave, toToggleOnDblClick, toWheelPanning, toEditOnClick]
     TreeOptions.PaintOptions = [toShowButtons, toShowDropmark, toThemeAware, toUseBlendedImages]
     TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect, toSimpleDrawSelection, toAlwaysSelectNode]
   end
   object Label1: TLabel
-    Left = 16
+    Left = 776
     Height = 19
-    Top = 56
+    Top = 4
     Width = 203
+    Anchors = [akTop, akRight]
     Caption = 'Real-time file-system notifications:'
   end
   object cbPath: TCheckBox
-    Left = 1007
+    Left = 592
     Height = 23
-    Top = 20
+    Top = 4
     Width = 53
     Anchors = [akTop, akRight]
     Caption = 'Path'
     Checked = True
     State = cbChecked
-    TabOrder = 4
+    TabOrder = 3
     OnChange = edtFilterChange
   end
   object btnEagle: TBitBtn
-    Left = 284
+    Left = 736
     Height = 31
-    Top = 16
+    Top = 0
     Width = 31
+    Anchors = [akTop, akRight]
     Glyph.Data = {
       36090000424D3609000000000000360000002800000018000000180000000100
       20000000000000000000120B0000120B00000000000000000000000000000000
@@ -157,22 +151,45 @@ object Form1: TForm1
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000
     }
-    TabOrder = 5
+    TabOrder = 4
     OnClick = btnEagleClick
   end
   object timerFilterDebounce: TTimer
     Enabled = False
     Interval = 150
     OnTimer = timerFilterDebounceTimer
-    Left = 576
-    Top = 16
+    Left = 244
   end
   object fileTreeMenu: TPopupMenu
-    Left = 576
-    Top = 80
+    Left = 108
+    Top = 64
     object menuOpenFolder: TMenuItem
       Caption = '&Open in folder'
       OnClick = menuOpenFolderClick
+    end
+  end
+  object MainMenu1: TMainMenu
+    Left = 344
+    Top = 16
+    object menuFile: TMenuItem
+      Caption = 'File'
+      Visible = False
+      object MenuItem2: TMenuItem
+        Caption = 'MenuItem2'
+      end
+    end
+    object menuTools: TMenuItem
+      Caption = 'Tools'
+      object menuOptions: TMenuItem
+        Caption = 'Options'
+        OnClick = menuOptionsClick
+      end
+    end
+    object menuHelp: TMenuItem
+      Caption = 'Help'
+      object MenuItem1: TMenuItem
+        Caption = 'About'
+      end
     end
   end
 end

@@ -8,6 +8,9 @@ uses
   Classes, SysUtils,
   SQLite3Conn, SQLDB, sqlite3dyn;
 
+const
+  DB_FILENAME = 'eagle.sqlite';
+
 type
   TEagleFileRecord = record
     Name: string;
@@ -26,7 +29,7 @@ type
     procedure EnsureSchema;
     procedure BulkImportFiles(const AFiles: array of TSearchRec);
   public
-    constructor Create(const ADBPath: string = 'eagle.sqlite');
+    constructor Create(const ADBPath: string = DB_FILENAME);
     destructor Destroy; override;
 
     procedure Open;
@@ -44,12 +47,26 @@ type
 
 implementation
 
-uses TimeCheck;
+uses utils, TimeCheck;
+
+function GetDefaultDBPath: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetEagleDataDir) + DB_FILENAME;
+end;
 
 constructor TEagleDB.Create(const ADBPath: string);
+var
+  targetDir: string;
 begin
   inherited Create;
-  FDBPath := ADBPath;
+  if ADBPath = DB_FILENAME then
+    FDBPath := GetDefaultDBPath
+  else
+    FDBPath := ADBPath;
+
+  targetDir := ExtractFileDir(FDBPath);
+  if (targetDir <> '') and (not DirectoryExists(targetDir)) then
+    ForceDirectories(targetDir);
 
   FConnection := TSQLite3Connection.Create(nil);
   FTransaction := TSQLTransaction.Create(nil);

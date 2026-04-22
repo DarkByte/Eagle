@@ -10,7 +10,7 @@ uses
   LCLIntf,
   ExtCtrls, Menus,
   laz.VirtualTrees,
-  utils,
+  utils, formoptions,
   TimeCheck,
   WatchThread, EagleDB;
 
@@ -21,17 +21,24 @@ type
     btnEagle: TBitBtn;
     cbPath: TCheckBox;
     edtFilter: TEdit;
-    edtPathToEagle: TEdit;
     fileTree: TLazVirtualStringTree;
     Label1: TLabel;
+    MainMenu1: TMainMenu;
     Memo1: TMemo;
     fileTreeMenu: TPopupMenu;
+    menuFile: TMenuItem;
+    menuHelp: TMenuItem;
+    MenuItem1: TMenuItem;
+    MenuItem2: TMenuItem;
+    menuTools: TMenuItem;
+    menuOptions: TMenuItem;
     menuOpenFolder: TMenuItem;
     timerFilterDebounce: TTimer;
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
     procedure menuOpenFolderClick(Sender: TObject);
+    procedure menuOptionsClick(Sender: TObject);
     procedure timerFilterDebounceTimer(Sender: TObject);
     procedure FormClick(Sender: TObject);
 
@@ -81,6 +88,9 @@ begin
   FSortColumn := NoColumn;
   FSortDirection := sdAscending;
 
+  if not btnEagle.Enabled then
+    Exit;
+
   SetupDB;
   SetupWatchThread;
 
@@ -129,6 +139,8 @@ end;
 
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);
+var
+  i: Integer;
 begin
   benchStamp.InsertTime('Starting watchThread');
   if not Assigned(FWatchThread) then
@@ -136,7 +148,9 @@ begin
 
   btnEagle.Enabled := False;
   if FWatchThread.Suspended then begin
-    FWatchThread.AddWatchPath(edtPathToEagle.Text);
+    for i := 0 to eagleOptions.paths.Count - 1 do
+      FWatchThread.AddWatchPath(eagleOptions.paths[i]);
+    //FWatchThread.AddWatchPath(edtPathToEagle.Text);
     FWatchThread.Start;
   end;
 end;
@@ -175,6 +189,19 @@ begin
   opened := OpenURL(folderUrl);
   if not opened then
     opened := OpenDocument(folderPath);
+end;
+
+procedure TForm1.menuOptionsClick(Sender: TObject);
+var
+  options: TOptionsForm;
+begin
+  // open Options
+  options := TOptionsForm.Create(self);
+  try
+    options.ShowModal;
+  finally
+    options.Free;
+  end;
 end;
 
 procedure TForm1.timerFilterDebounceTimer(Sender: TObject);
