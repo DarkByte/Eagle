@@ -35,7 +35,7 @@ type
     procedure Open;
     procedure Close;
     function IsOpen: boolean;
-    function GetFiles(const AFilterText: string; const alsoSearchPath: boolean): TEagleFileRecords;
+    function GetFiles(const AFilterText: string; searchName, searchPath: boolean): TEagleFileRecords;
 
     procedure AddFile(Name, path: string; size: int64; timestamp: longint);
     procedure DeleteFile(const fullPath: string);
@@ -124,7 +124,7 @@ begin
   Result := FConnection.Connected;
 end;
 
-function TEagleDB.GetFiles(const AFilterText: string; const alsoSearchPath: boolean): TEagleFileRecords;
+function TEagleDB.GetFiles(const AFilterText: string; searchName, searchPath: boolean): TEagleFileRecords;
 var
   query: TSQLQuery;
   filterText: string;
@@ -147,16 +147,26 @@ begin
     if filterText = '' then begin
       query.SQL.Text :=
         'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files ORDER BY path, name';
-    end else
-      if alsoSearchPath then begin
-        query.SQL.Text :=
-          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE (name LIKE :filter OR path LIKE :filter) ORDER BY path, name';
-        query.ParamByName('filter').AsString := '%' + filterText + '%';
-      end else begin
-        query.SQL.Text :=
-          'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE name LIKE :filter ' + 'ORDER BY path, name';
-        query.ParamByName('filter').AsString := '%' + filterText + '%';
-      end;
+    end
+    else if searchName and searchPath then begin
+      query.SQL.Text :=
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE (name LIKE :filter OR path LIKE :filter) ORDER BY path, name';
+      query.ParamByName('filter').AsString := '%' + filterText + '%';
+    end
+    else if searchName then begin
+      query.SQL.Text :=
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE name LIKE :filter ORDER BY path, name';
+      query.ParamByName('filter').AsString := '%' + filterText + '%';
+    end
+    else if searchPath then begin
+      query.SQL.Text :=
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE path LIKE :filter ORDER BY path, name';
+      query.ParamByName('filter').AsString := '%' + filterText + '%';
+    end
+    else begin
+      query.SQL.Text :=
+        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE 1 = 0';
+    end;
 
     query.Open;
     query.Last;

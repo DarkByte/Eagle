@@ -17,7 +17,10 @@ type
     btnPathAdd: TButton;
     btnPathOptions: TButton;
     btnPathRemove: TButton;
+    cbName: TCheckBox;
+    cbPath: TCheckBox;
     cbRecursive: TCheckBox;
+    GroupBox1: TGroupBox;
     Label1: TLabel;
     pathListBox: TListBox;
     pages: TPageControl;
@@ -27,6 +30,7 @@ type
     procedure btnPathAddClick(Sender: TObject);
     procedure btnPathRemoveClick(Sender: TObject);
     procedure cbRecursiveChange(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
     procedure pathListBoxSelectionChange(Sender: TObject; User: boolean);
     procedure FormShow(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
@@ -64,12 +68,16 @@ begin
   LoadConfig;
 
   cbRecursive.Checked := eagleOptions.watchRecursively;
+  cbName.Checked := eagleOptions.searchName;
+  cbPath.Checked := eagleOptions.searchPath;
   pathListBox.Items := eagleOptions.paths;
 end;
 
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
 begin
   eagleOptions.watchRecursively := cbRecursive.Checked;
+  eagleOptions.searchName := cbName.Checked;
+  eagleOptions.searchPath := cbPath.Checked;
   eagleOptions.paths.Text := pathListBox.Items.Text;
 
   SaveConfig;
@@ -80,6 +88,11 @@ end;
 procedure TOptionsForm.cbRecursiveChange(Sender: TObject);
 begin
   watchRecursively := cbRecursive.Checked;
+end;
+
+procedure TOptionsForm.FormCreate(Sender: TObject);
+begin
+  pages.ActivePageIndex := 0;
 end;
 
 procedure TOptionsForm.btnPathRemoveClick(Sender: TObject);

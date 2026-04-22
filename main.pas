@@ -19,7 +19,6 @@ type
   { TForm1 }
   TForm1 = class(TForm)
     btnEagle: TBitBtn;
-    cbPath: TCheckBox;
     edtFilter: TEdit;
     fileTree: TLazVirtualStringTree;
     Label1: TLabel;
@@ -140,7 +139,7 @@ end;
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);
 var
-  i: Integer;
+  i: integer;
 begin
   benchStamp.InsertTime('Starting watchThread');
   if not Assigned(FWatchThread) then
@@ -150,7 +149,7 @@ begin
   if FWatchThread.Suspended then begin
     for i := 0 to eagleOptions.paths.Count - 1 do
       FWatchThread.AddWatchPath(eagleOptions.paths[i]);
-    //FWatchThread.AddWatchPath(edtPathToEagle.Text);
+
     FWatchThread.Start;
   end;
 end;
@@ -201,6 +200,7 @@ begin
     options.ShowModal;
   finally
     options.Free;
+    timerFilterDebounceTimer(self);
   end;
 end;
 
@@ -216,7 +216,7 @@ var
   filterText: string;
 begin
   filterText := Trim(edtFilter.Text);
-  FFileRecords := FEagleDB.GetFiles(filterText, cbPath.Checked);
+  FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchName, eagleOptions.searchPath);
   SortFileRecords;
   PopulateFileTree;
 
@@ -225,7 +225,7 @@ end;
 
 procedure TForm1.SetupFileTree;
 const
-  widths: array of Integer = (250, 80, 120);
+  widths: array of integer = (250, 80, 120);
 var
   Column: TVirtualTreeColumn;
 begin
@@ -280,7 +280,7 @@ begin
       Result := 0;
   end;
 
-  // Keep ordering deterministic when primary values are equal.
+  // Keep ordering when primary values are equal.
   if Result = 0 then begin
     Result := CompareText(A.Path, B.Path);
     if Result = 0 then

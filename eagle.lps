@@ -19,8 +19,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="139"/>
-        <CursorPos X="18" Y="144"/>
+        <TopLine Value="172"/>
+        <CursorPos X="36" Y="203"/>
         <UsageCount Value="209"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -39,7 +39,7 @@
         <EditorIndex Value="2"/>
         <TopLine Value="115"/>
         <CursorPos X="143" Y="126"/>
-        <UsageCount Value="197"/>
+        <UsageCount Value="199"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -47,9 +47,9 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="EagleDB"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="114"/>
-        <CursorPos X="75" Y="119"/>
-        <UsageCount Value="177"/>
+        <TopLine Value="116"/>
+        <CursorPos X="43" Y="127"/>
+        <UsageCount Value="179"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
@@ -60,9 +60,9 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="formOptions"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="49"/>
-        <CursorPos X="54" Y="68"/>
-        <UsageCount Value="25"/>
+        <TopLine Value="53"/>
+        <CursorPos X="29" Y="95"/>
+        <UsageCount Value="27"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit>
@@ -216,101 +216,6 @@
     <JumpHistory HistoryIndex="29">
       <Position>
         <Filename Value="utils.pas"/>
-        <Caret Line="97" TopLine="70"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="98" TopLine="70"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="100" TopLine="70"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="101" TopLine="70"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="105" TopLine="71"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="106" TopLine="75"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="107" TopLine="75"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="108" TopLine="75"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="109" TopLine="75"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="106" TopLine="75"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="85" Column="28" TopLine="61"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="83" Column="29" TopLine="61"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="90" TopLine="61"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="82" Column="36" TopLine="70"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-        <Caret Line="37" TopLine="17"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="108" Column="18" TopLine="78"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-        <Caret Line="83" Column="44" TopLine="54"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-        <Caret Line="57" Column="27" TopLine="45"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-        <Caret Line="72" Column="21" TopLine="53"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="87" Column="27" TopLine="69"/>
-      </Position>
-      <Position>
-        <Filename Value="formoptions.pas"/>
-        <Caret Line="82" Column="64" TopLine="53"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="131" Column="58" TopLine="109"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
-        <Caret Line="123" Column="45" TopLine="106"/>
-      </Position>
-      <Position>
-        <Filename Value="utils.pas"/>
         <Caret Line="141" TopLine="123"/>
       </Position>
       <Position>
@@ -333,6 +238,102 @@
         <Filename Value="main.pas"/>
         <Caret Line="144" Column="18" TopLine="139"/>
       </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="68" Column="54" TopLine="49"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="69" Column="54" TopLine="50"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="70" Column="54" TopLine="51"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="71" Column="54" TopLine="52"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="72" Column="54" TopLine="53"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="71" Column="54" TopLine="52"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="70" Column="54" TopLine="51"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="72" Column="54" TopLine="53"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="71" Column="54" TopLine="52"/>
+      </Position>
+      <Position>
+        <Filename Value="formoptions.pas"/>
+        <Caret Line="60" Column="25" TopLine="53"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="144" Column="18" TopLine="139"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="160" Column="33" TopLine="133"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="209" Column="14" TopLine="207"/>
+      </Position>
+      <Position>
+        <Filename Value="eagledb.pas"/>
+        <Caret Line="127" Column="107" TopLine="113"/>
+      </Position>
+      <Position>
+        <Filename Value="eagledb.pas"/>
+        <Caret Line="38" Column="14" TopLine="38"/>
+      </Position>
+      <Position>
+        <Filename Value="eagledb.pas"/>
+        <Caret Line="129" Column="23" TopLine="125"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="190" Column="30" TopLine="187"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="22" Column="5" TopLine="4"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="21" Column="23" TopLine="4"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="15" Column="30" TopLine="4"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="33" Column="16" TopLine="4"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="40" Column="26" TopLine="4"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="150" Column="31" TopLine="120"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="151" Column="45" TopLine="120"/>
+      </Position>
     </JumpHistory>
     <RunParams>
       <FormatVersion Value="2"/>
@@ -340,15 +341,6 @@
     </RunParams>
   </ProjectSession>
   <Debugging>
-    <BreakPoints>
-      <Item>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="main.pas"/>
-        <Line Value="152"/>
-      </Item>
-    </BreakPoints>
     <Watches>
       <Item>
         <Expression Value="eagleOptions.paths[i]"/>

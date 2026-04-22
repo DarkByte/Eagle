@@ -57,18 +57,6 @@ object Form1: TForm1
     Anchors = [akTop, akRight]
     Caption = 'Real-time file-system notifications:'
   end
-  object cbPath: TCheckBox
-    Left = 592
-    Height = 23
-    Top = 4
-    Width = 53
-    Anchors = [akTop, akRight]
-    Caption = 'Path'
-    Checked = True
-    State = cbChecked
-    TabOrder = 3
-    OnChange = edtFilterChange
-  end
   object btnEagle: TBitBtn
     Left = 736
     Height = 31
@@ -151,7 +139,7 @@ object Form1: TForm1
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000
     }
-    TabOrder = 4
+    TabOrder = 3
     OnClick = btnEagleClick
   end
   object timerFilterDebounce: TTimer
@@ -161,7 +149,7 @@ object Form1: TForm1
     Left = 244
   end
   object fileTreeMenu: TPopupMenu
-    Left = 108
+    Left = 144
     Top = 64
     object menuOpenFolder: TMenuItem
       Caption = '&Open in folder'
@@ -169,8 +157,8 @@ object Form1: TForm1
     end
   end
   object MainMenu1: TMainMenu
-    Left = 344
-    Top = 16
+    Left = 40
+    Top = 64
     object menuFile: TMenuItem
       Caption = 'File'
       Visible = False

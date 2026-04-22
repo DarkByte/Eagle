@@ -11,6 +11,8 @@ type
   TEagleOptions = record
     paths: TStringList;
     watchRecursively: Boolean;
+    searchName: Boolean;
+    searchPath: Boolean;
   end;
 
 function CurrentTime: String;
@@ -90,6 +92,14 @@ var
   path: string;
   i, Count: integer;
 begin
+  eagleOptions.searchName := True;
+  eagleOptions.searchPath := True;
+
+  if not Assigned(eagleOptions.paths) then
+    eagleOptions.paths := TStringList.Create
+  else
+    eagleOptions.paths.Clear;
+
   configDir := IncludeTrailingPathDelimiter(GetEagleConfigDir);
   configPath := configDir + 'eagle.ini';
   if not FileExists(configPath) then
@@ -98,11 +108,8 @@ begin
   ini := TIniFile.Create(configPath);
   try
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
-
-    if not Assigned(eagleOptions.paths) then
-      eagleOptions.paths := TStringList.Create
-    else
-      eagleOptions.paths.Clear;
+    eagleOptions.searchName := ini.ReadBool('Search', 'searchName', True);
+    eagleOptions.searchPath := ini.ReadBool('Search', 'searchPath', True);
 
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
@@ -131,6 +138,8 @@ begin
   try
     ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
+    ini.WriteBool('Search', 'searchName', eagleOptions.searchName);
+    ini.WriteBool('Search', 'searchPath', eagleOptions.searchPath);
 
     for i := 0 to eagleOptions.paths.Count - 1 do
       ini.WriteString('Paths', 'Path' + IntToStr(i + 1), eagleOptions.paths[i]);
