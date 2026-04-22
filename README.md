@@ -18,7 +18,7 @@ Obviously inspired by Everything - which I missed since moving to Linux.
 
 ## Future plans
 
-- autorun - set it and forget it
+- autorun - set your folders and forget it until you need it
 - shortcut to show the search window, where it will allow opening folders/files
 - multiple search options
 - inter-process communication (no idea how yet) to allow other programs to get instant search results
