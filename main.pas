@@ -6,9 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  Process,
-  LCLIntf,
-  ExtCtrls, Menus,
+  Process, LCLIntf,ExtCtrls, Menus, Clipbrd,
   laz.VirtualTrees,
   utils, formoptions,
   TimeCheck,
@@ -29,6 +27,10 @@ type
     menuHelp: TMenuItem;
     MenuItem1: TMenuItem;
     MenuItem2: TMenuItem;
+    mnuCopy: TMenuItem;
+    mnuCopyName: TMenuItem;
+    mnuCopyPathAndName: TMenuItem;
+    mnuCopyPath: TMenuItem;
     menuTools: TMenuItem;
     menuOptions: TMenuItem;
     menuOpenFolder: TMenuItem;
@@ -36,11 +38,16 @@ type
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
+    procedure mnuCopyPathAndNameClick(Sender: TObject);
+    procedure mnuCopyPathClick(Sender: TObject);
+    procedure timerFilterDebounceTimer(Sender: TObject);
+
+    // FileTree context menu
     procedure menuOpenFolderClick(Sender: TObject);
     procedure menuOptionsClick(Sender: TObject);
-    procedure timerFilterDebounceTimer(Sender: TObject);
-    procedure FormClick(Sender: TObject);
+    procedure mnuCopyNameClick(Sender: TObject);
 
+    procedure FormClick(Sender: TObject);
     procedure FormCreate;
     procedure FormDestroy;
   private
@@ -50,6 +57,8 @@ type
     FFileRecords: TEagleFileRecords;
     FSortColumn: TColumnIndex;
     FSortDirection: TSortDirection;
+
+    function LoadFileRecordFromTree(var fileRecord: TEagleFileRecord): Boolean;
 
     procedure HandleLog(const AMessage: string);
     procedure HandleCreate(const APath: string);
@@ -160,14 +169,40 @@ begin
   timerFilterDebounce.Enabled := True;
 end;
 
-procedure TForm1.menuOpenFolderClick(Sender: TObject);
+procedure TForm1.timerFilterDebounceTimer(Sender: TObject);
+begin
+  timerFilterDebounce.Enabled := False;
+  RefreshFileTree;
+end;
+
+procedure TForm1.menuOptionsClick(Sender: TObject);
+var
+  options: TOptionsForm;
+begin
+  options := TOptionsForm.Create(self);
+  try
+    options.ShowModal;
+  finally
+    if options.shouldRefreshFileTree then
+      RefreshFileTree;
+
+    options.Free;
+  end;
+end;
+
+// TEST
+procedure TForm1.FormClick(Sender: TObject);
+begin
+  //Memo1.Lines.Add(benchStamp.GetAllTimestamps);
+end;
+
+{$REGION 'FileTree context menu'}
+function TForm1.LoadFileRecordFromTree(var fileRecord: TEagleFileRecord): Boolean;
 var
   selectedNode: PVirtualNode;
   nodeIndex: integer;
-  folderUrl: string;
-  folderPath: string;
-  opened: boolean;
 begin
+  Result := False;
   selectedNode := fileTree.GetFirstSelected;
   if selectedNode = nil then
     selectedNode := fileTree.FocusedNode;
@@ -176,10 +211,25 @@ begin
     Exit;
 
   nodeIndex := fileTree.AbsoluteIndex(selectedNode);
+
   if (nodeIndex < 0) or (nodeIndex >= Length(FFileRecords)) then
     Exit;
 
-  folderPath := FFileRecords[nodeIndex].Path;
+  fileRecord := FFileRecords[nodeIndex];
+  Result := True;
+end;
+
+procedure TForm1.menuOpenFolderClick(Sender: TObject);
+var
+  folderPath, folderUrl: string;
+  opened: boolean;
+
+  fileRecord: TEagleFileRecord;
+begin
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  folderPath := fileRecord.Path;
   if (folderPath = '') or not DirectoryExists(folderPath) then
     Exit;
 
@@ -190,27 +240,38 @@ begin
     opened := OpenDocument(folderPath);
 end;
 
-procedure TForm1.menuOptionsClick(Sender: TObject);
+procedure TForm1.mnuCopyNameClick(Sender: TObject);
 var
-  options: TOptionsForm;
+  fileRecord: TEagleFileRecord;
 begin
-  // open Options
-  options := TOptionsForm.Create(self);
-  try
-    options.ShowModal;
-  finally
-    options.Free;
-    timerFilterDebounceTimer(self);
-  end;
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  Clipboard.AsText := fileRecord.Name;
 end;
 
-procedure TForm1.timerFilterDebounceTimer(Sender: TObject);
+procedure TForm1.mnuCopyPathAndNameClick(Sender: TObject);
+var
+  fileRecord: TEagleFileRecord;
 begin
-  timerFilterDebounce.Enabled := False;
-  RefreshFileTree;
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path) + fileRecord.Name;
 end;
 
-// FileTree
+procedure TForm1.mnuCopyPathClick(Sender: TObject);
+var
+  fileRecord: TEagleFileRecord;
+begin
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path)
+end;
+{$ENDREGION}
+
+{$REGION 'FileTree'}
 procedure TForm1.RefreshFileTree;
 var
   filterText: string;
@@ -371,7 +432,11 @@ begin
   case Column of
     0: CellText := FFileRecords[NodeIndex].Name;
     1: CellText := FFileRecords[NodeIndex].Path;
-    2: CellText := IntToStr(FFileRecords[NodeIndex].Size);
+    2:
+      if eagleOptions.prettySize then
+        CellText := PrettySize(FFileRecords[NodeIndex].Size)
+      else
+        CellText := IntToStr(FFileRecords[NodeIndex].Size);
     3: CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time))
   end;
 end;
@@ -382,14 +447,9 @@ begin
   fileTree.RootNodeCount := Length(FFileRecords);
   fileTree.Refresh;
 end;
+{$ENDREGION}
 
-// TEST
-procedure TForm1.FormClick(Sender: TObject);
-begin
-  Memo1.Lines.Add(benchStamp.GetAllTimestamps);
-end;
-
-// TWatchThread delegate methods
+{$REGION TWatchThread delegate methods}
 procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
   benchStamp.InsertTime('Finished watchThread');
@@ -445,5 +505,6 @@ procedure TForm1.HandleScanProgress(const ACount: integer);
 begin
   Memo1.Lines.Add('[SCAN] ' + IntToStr(ACount) + ' files found so far...');
 end;
+{$ENDREGION}
 
 end.

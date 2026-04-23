@@ -20,6 +20,7 @@ type
     cbName: TCheckBox;
     cbPath: TCheckBox;
     cbRecursive: TCheckBox;
+    cbPrettySize: TCheckBox;
     GroupBox1: TGroupBox;
     Label1: TLabel;
     pathListBox: TListBox;
@@ -39,6 +40,7 @@ type
 
     procedure EnableButtons(enable: boolean);
   public
+    shouldRefreshFileTree: Boolean;
 
   end;
 
@@ -64,20 +66,26 @@ end;
 
 procedure TOptionsForm.FormShow(Sender: TObject);
 begin
+  shouldRefreshFileTree := False;
   pathListBox.Items.Clear;
   LoadConfig;
 
   cbRecursive.Checked := eagleOptions.watchRecursively;
   cbName.Checked := eagleOptions.searchName;
   cbPath.Checked := eagleOptions.searchPath;
+  cbPrettySize.Checked := eagleOptions.prettySize;
   pathListBox.Items := eagleOptions.paths;
 end;
 
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
 begin
+  if eagleOptions.prettySize <> cbPrettySize.Checked then
+    shouldRefreshFileTree := True;
+
   eagleOptions.watchRecursively := cbRecursive.Checked;
   eagleOptions.searchName := cbName.Checked;
   eagleOptions.searchPath := cbPath.Checked;
+  eagleOptions.prettySize := cbPrettySize.Checked;
   eagleOptions.paths.Text := pathListBox.Items.Text;
 
   SaveConfig;

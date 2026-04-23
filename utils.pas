@@ -10,17 +10,20 @@ uses
 type
   TEagleOptions = record
     paths: TStringList;
-    watchRecursively: Boolean;
-    searchName: Boolean;
-    searchPath: Boolean;
+    watchRecursively: boolean;
+    searchName: boolean;
+    searchPath: boolean;
+    prettySize: boolean;
   end;
 
-function CurrentTime: String;
+function CurrentTime: string;
 function GetEagleDataDir: string;
 function GetEagleConfigDir: string;
 
 procedure LoadConfig;
 procedure SaveConfig;
+
+function PrettySize(size: int64): string;
 
 function EndsWith(const Value, Suffix: string): boolean;
 function IsIgnoredTempFileName(const FileName: string): boolean;
@@ -36,11 +39,14 @@ implementation
 uses
   IniFiles;
 
-var
-  configPath, configDir: String;
-  lastPathCount: Integer;
+const
+  INI_FILENAME = 'eagle.ini';
 
-function CurrentTime: String;
+var
+  configPath, configDir: string;
+  lastPathCount: integer;
+
+function CurrentTime: string;
 begin
   Result := FormatDateTime('dd.mm hh:nn:ss.zzz', Now);
 end;
@@ -94,6 +100,7 @@ var
 begin
   eagleOptions.searchName := True;
   eagleOptions.searchPath := True;
+  eagleOptions.prettySize := True;
 
   if not Assigned(eagleOptions.paths) then
     eagleOptions.paths := TStringList.Create
@@ -101,15 +108,16 @@ begin
     eagleOptions.paths.Clear;
 
   configDir := IncludeTrailingPathDelimiter(GetEagleConfigDir);
-  configPath := configDir + 'eagle.ini';
+  configPath := configDir + INI_FILENAME;
   if not FileExists(configPath) then
     Exit;
 
   ini := TIniFile.Create(configPath);
   try
-    eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
     eagleOptions.searchName := ini.ReadBool('Search', 'searchName', True);
     eagleOptions.searchPath := ini.ReadBool('Search', 'searchPath', True);
+    eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
+    eagleOptions.prettySize := ini.ReadBool('Preferences', 'PrettySize', True);
 
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
@@ -132,14 +140,16 @@ begin
   if (configDir <> '') and (not DirectoryExists(configDir)) then
     ForceDirectories(configDir);
 
-  configPath := configDir + 'eagle.ini';
+  configPath := configDir + INI_FILENAME;
 
   ini := TIniFile.Create(configPath);
   try
-    ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
-    ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
     ini.WriteBool('Search', 'searchName', eagleOptions.searchName);
     ini.WriteBool('Search', 'searchPath', eagleOptions.searchPath);
+
+    ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
+    ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
+    ini.WriteBool('Preferences', 'PrettySize', eagleOptions.prettySize);
 
     for i := 0 to eagleOptions.paths.Count - 1 do
       ini.WriteString('Paths', 'Path' + IntToStr(i + 1), eagleOptions.paths[i]);
@@ -150,6 +160,23 @@ begin
   finally
     ini.Free;
   end;
+end;
+
+function PrettySize(size: int64): string;
+const
+  sizes: array of string = (' B', ' KB', ' MB', ' GB', ' TB');
+var
+  i: integer;
+  tempSize: int64;
+begin
+  tempSize := size;
+  for i := Low(sizes) to High(sizes) do
+    if tempSize < 1024 then
+      Break
+    else
+      tempSize := tempSize div 1024;
+
+  Result := IntToStr(tempSize) + sizes[i];
 end;
 
 function EndsWith(const Value, Suffix: string): boolean;

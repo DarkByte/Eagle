@@ -152,8 +152,23 @@ object Form1: TForm1
     Left = 144
     Top = 64
     object menuOpenFolder: TMenuItem
-      Caption = '&Open in folder'
+      Caption = '&Open folder'
       OnClick = menuOpenFolderClick
+    end
+    object mnuCopy: TMenuItem
+      Caption = '&Copy'
+      object mnuCopyName: TMenuItem
+        Caption = '&Name'
+        OnClick = mnuCopyNameClick
+      end
+      object mnuCopyPathAndName: TMenuItem
+        Caption = 'Path &and name'
+        OnClick = mnuCopyPathAndNameClick
+      end
+      object mnuCopyPath: TMenuItem
+        Caption = '&Path'
+        OnClick = mnuCopyPathClick
+      end
     end
   end
   object MainMenu1: TMainMenu
