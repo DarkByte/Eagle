@@ -6,27 +6,37 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  ComCtrls, FileCtrl, IniFiles, utils, Types;
+  ComCtrls, utils;
 
 type
-
   { TOptionsForm }
-
   TOptionsForm = class(TForm)
     btnSave: TButton;
     btnPathAdd: TButton;
     btnPathOptions: TButton;
     btnPathRemove: TButton;
+
+    cbCtrlClick: TComboBox;
+    cbAltClick: TComboBox;
+    cbShiftClick: TComboBox;
+    cbDoubleClick: TComboBox;
+    cbMiddleClick: TComboBox;
+
     cbName: TCheckBox;
     cbPath: TCheckBox;
     cbRecursive: TCheckBox;
     cbPrettySize: TCheckBox;
     GroupBox1: TGroupBox;
     Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
     pathListBox: TListBox;
     pages: TPageControl;
     tabLocations: TTabSheet;
-    tabPreferences: TTabSheet;
+    tabSearchResults: TTabSheet;
     tabSearch: TTabSheet;
     procedure btnPathAddClick(Sender: TObject);
     procedure btnPathRemoveClick(Sender: TObject);
@@ -36,11 +46,11 @@ type
     procedure FormShow(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
   private
-    watchRecursively: Boolean;
+    watchRecursively: boolean;
 
     procedure EnableButtons(enable: boolean);
   public
-    shouldRefreshFileTree: Boolean;
+    shouldRefreshFileTree: boolean;
 
   end;
 
@@ -71,10 +81,17 @@ begin
   LoadConfig;
 
   cbRecursive.Checked := eagleOptions.watchRecursively;
-  cbName.Checked := eagleOptions.searchName;
-  cbPath.Checked := eagleOptions.searchPath;
+  cbName.Checked      := eagleOptions.searchName;
+  cbPath.Checked      := eagleOptions.searchPath;
   cbPrettySize.Checked := eagleOptions.prettySize;
-  pathListBox.Items := eagleOptions.paths;
+
+  cbCtrlClick.ItemIndex := Ord(eagleOptions.ctrlClickAction);
+  cbAltClick.ItemIndex := Ord(eagleOptions.altClickAction);
+  cbShiftClick.ItemIndex := Ord(eagleOptions.shiftClickAction);
+  cbDoubleClick.ItemIndex := Ord(eagleOptions.doubleClickAction);
+  cbMiddleClick.ItemIndex := Ord(eagleOptions.middleClickAction);
+
+  pathListBox.Items   := eagleOptions.paths;
 end;
 
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
@@ -86,6 +103,13 @@ begin
   eagleOptions.searchName := cbName.Checked;
   eagleOptions.searchPath := cbPath.Checked;
   eagleOptions.prettySize := cbPrettySize.Checked;
+
+  eagleOptions.ctrlClickAction := TItemAction(cbCtrlClick.ItemIndex);
+  eagleOptions.altClickAction := TItemAction(cbAltClick.ItemIndex);
+  eagleOptions.shiftClickAction := TItemAction(cbShiftClick.ItemIndex);
+  eagleOptions.doubleClickAction := TItemAction(cbDoubleClick.ItemIndex);
+  eagleOptions.middleClickAction := TItemAction(cbMiddleClick.ItemIndex);
+
   eagleOptions.paths.Text := pathListBox.Items.Text;
 
   SaveConfig;

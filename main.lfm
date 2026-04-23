@@ -48,6 +48,7 @@ object Form1: TForm1
     TreeOptions.MiscOptions = [toFullRepaintOnResize, toGridExtensions, toInitOnSave, toToggleOnDblClick, toWheelPanning, toEditOnClick]
     TreeOptions.PaintOptions = [toShowButtons, toShowDropmark, toThemeAware, toUseBlendedImages]
     TreeOptions.SelectionOptions = [toFullRowSelect, toRightClickSelect, toSimpleDrawSelection, toAlwaysSelectNode]
+    OnMouseUp = fileTreeMouseUp
   end
   object Label1: TLabel
     Left = 776
@@ -146,14 +147,18 @@ object Form1: TForm1
     Enabled = False
     Interval = 150
     OnTimer = timerFilterDebounceTimer
-    Left = 244
+    Left = 592
   end
   object fileTreeMenu: TPopupMenu
-    Left = 144
+    Left = 136
     Top = 64
-    object menuOpenFolder: TMenuItem
-      Caption = '&Open folder'
-      OnClick = menuOpenFolderClick
+    object mnuOpenFile: TMenuItem
+      Caption = '&Open'
+      OnClick = mnuOpenFileClick
+    end
+    object mnuOpenFolder: TMenuItem
+      Caption = 'Open fol&der'
+      OnClick = mnuOpenFolderClick
     end
     object mnuCopy: TMenuItem
       Caption = '&Copy'
@@ -176,9 +181,13 @@ object Form1: TForm1
     Top = 64
     object menuFile: TMenuItem
       Caption = 'File'
-      Visible = False
-      object MenuItem2: TMenuItem
-        Caption = 'MenuItem2'
+      object menuFileOpen: TMenuItem
+        Caption = 'Open'
+        OnClick = mnuOpenFileClick
+      end
+      object menuFileOpenFolder: TMenuItem
+        Caption = 'Open folder'
+        OnClick = mnuOpenFolderClick
       end
     end
     object menuTools: TMenuItem
@@ -190,6 +199,9 @@ object Form1: TForm1
     end
     object menuHelp: TMenuItem
       Caption = 'Help'
+      object MenuItem3: TMenuItem
+        Caption = 'How To'
+      end
       object MenuItem1: TMenuItem
         Caption = 'About'
       end

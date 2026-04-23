@@ -1,19 +1,19 @@
 object OptionsForm: TOptionsForm
   Left = 480
-  Height = 335
+  Height = 354
   Top = 1330
-  Width = 516
+  Width = 529
   BorderStyle = bsDialog
   Caption = 'Options'
-  ClientHeight = 335
-  ClientWidth = 516
+  ClientHeight = 354
+  ClientWidth = 529
   LCLVersion = '4.6.0.0'
   OnCreate = FormCreate
   OnShow = FormShow
   object btnSave: TButton
-    Left = 433
+    Left = 446
     Height = 31
-    Top = 297
+    Top = 316
     Width = 75
     Anchors = [akRight, akBottom]
     Caption = 'Save'
@@ -22,10 +22,10 @@ object OptionsForm: TOptionsForm
   end
   object pages: TPageControl
     Left = 8
-    Height = 280
+    Height = 299
     Top = 8
-    Width = 500
-    ActivePage = tabPreferences
+    Width = 513
+    ActivePage = tabSearchResults
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
@@ -35,8 +35,8 @@ object OptionsForm: TOptionsForm
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
-      ClientHeight = 244
-      ClientWidth = 490
+      ClientHeight = 263
+      ClientWidth = 503
       object pathListBox: TListBox
         Left = 16
         Height = 111
@@ -50,7 +50,6 @@ object OptionsForm: TOptionsForm
         ItemHeight = 21
         Style = lbOwnerDrawFixed
         TabOrder = 0
-        TopIndex = -1
         OnSelectionChange = pathListBoxSelectionChange
       end
       object Label1: TLabel
@@ -102,8 +101,8 @@ object OptionsForm: TOptionsForm
     end
     object tabSearch: TTabSheet
       Caption = 'Search'
-      ClientHeight = 244
-      ClientWidth = 490
+      ClientHeight = 263
+      ClientWidth = 503
       object GroupBox1: TGroupBox
         Left = 16
         Height = 96
@@ -135,17 +134,147 @@ object OptionsForm: TOptionsForm
         end
       end
     end
-    object tabPreferences: TTabSheet
-      Caption = 'Preferences'
-      ClientHeight = 244
-      ClientWidth = 490
+    object tabSearchResults: TTabSheet
+      Caption = 'Search results'
+      ClientHeight = 263
+      ClientWidth = 503
       object cbPrettySize: TCheckBox
         Left = 16
         Height = 23
-        Top = 16
+        Top = 224
         Width = 189
         Caption = 'Show pretty size (B, KB etc)'
         TabOrder = 0
+      end
+      object Label2: TLabel
+        Left = 16
+        Height = 19
+        Top = 118
+        Width = 76
+        Caption = 'Double-click:'
+      end
+      object cbDoubleClick: TComboBox
+        Left = 105
+        Height = 29
+        Top = 112
+        Width = 140
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'is ignored'
+          'opens file'
+          'opens folder'
+          'copies name'
+          'copies path'
+          'copies full path'
+        )
+        Style = csDropDownList
+        TabOrder = 1
+        Text = 'is ignored'
+      end
+      object Label3: TLabel
+        Left = 16
+        Height = 19
+        Top = 150
+        Width = 74
+        Caption = 'Middle-click:'
+      end
+      object Label4: TLabel
+        Left = 16
+        Height = 19
+        Top = 22
+        Width = 54
+        Caption = 'Ctrl-click:'
+      end
+      object Label5: TLabel
+        Left = 16
+        Height = 19
+        Top = 54
+        Width = 49
+        Caption = 'Alt-click:'
+      end
+      object Label6: TLabel
+        Left = 16
+        Height = 19
+        Top = 86
+        Width = 59
+        Caption = 'Shift-click:'
+      end
+      object cbMiddleClick: TComboBox
+        Left = 105
+        Height = 29
+        Top = 144
+        Width = 140
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'is ignored'
+          'opens file'
+          'opens folder'
+          'copies name'
+          'copies path'
+          'copies full path'
+        )
+        Style = csDropDownList
+        TabOrder = 2
+        Text = 'is ignored'
+      end
+      object cbCtrlClick: TComboBox
+        Left = 105
+        Height = 29
+        Top = 16
+        Width = 140
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'is ignored'
+          'opens file'
+          'opens folder'
+          'copies name'
+          'copies path'
+          'copies full path'
+        )
+        Style = csDropDownList
+        TabOrder = 3
+        Text = 'is ignored'
+      end
+      object cbAltClick: TComboBox
+        Left = 105
+        Height = 29
+        Top = 48
+        Width = 140
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'is ignored'
+          'opens file'
+          'opens folder'
+          'copies name'
+          'copies path'
+          'copies full path'
+        )
+        Style = csDropDownList
+        TabOrder = 4
+        Text = 'is ignored'
+      end
+      object cbShiftClick: TComboBox
+        Left = 105
+        Height = 29
+        Top = 80
+        Width = 140
+        ItemHeight = 0
+        ItemIndex = 0
+        Items.Strings = (
+          'is ignored'
+          'opens file'
+          'opens folder'
+          'copies name'
+          'copies path'
+          'copies full path'
+        )
+        Style = csDropDownList
+        TabOrder = 5
+        Text = 'is ignored'
       end
     end
   end

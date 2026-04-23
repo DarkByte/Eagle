@@ -143,6 +143,7 @@ begin
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
 
+    // TODO: use generic sql command (for clarity)
     filterText := Trim(AFilterText);
     if filterText = '' then begin
       query.SQL.Text :=

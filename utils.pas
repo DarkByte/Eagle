@@ -8,12 +8,26 @@ uses
   Classes, SysUtils;
 
 type
+  TItemAction = (
+    iaIgnore = 0,
+    iaOpenFile = 1,
+    iaOpenFolder = 2,
+    iaCopyName = 3,
+    iaCopyPath = 4,
+    iaCopyPathName = 5
+    );
+
   TEagleOptions = record
     paths: TStringList;
     watchRecursively: boolean;
     searchName: boolean;
     searchPath: boolean;
     prettySize: boolean;
+    ctrlClickAction: TItemAction;
+    altClickAction: TItemAction;
+    shiftClickAction: TItemAction;
+    doubleClickAction: TItemAction;
+    middleClickAction: TItemAction;
   end;
 
 function CurrentTime: string;
@@ -45,6 +59,14 @@ const
 var
   configPath, configDir: string;
   lastPathCount: integer;
+
+function IntegerToItemAction(const value: integer; const defaultValue: TItemAction): TItemAction;
+begin
+  if (value >= Ord(Low(TItemAction))) and (value <= Ord(High(TItemAction))) then
+    Result := TItemAction(value)
+  else
+    Result := defaultValue;
+end;
 
 function CurrentTime: string;
 begin
@@ -101,6 +123,11 @@ begin
   eagleOptions.searchName := True;
   eagleOptions.searchPath := True;
   eagleOptions.prettySize := True;
+  eagleOptions.ctrlClickAction := iaIgnore;
+  eagleOptions.altClickAction := iaIgnore;
+  eagleOptions.shiftClickAction := iaIgnore;
+  eagleOptions.doubleClickAction := iaIgnore;
+  eagleOptions.middleClickAction := iaIgnore;
 
   if not Assigned(eagleOptions.paths) then
     eagleOptions.paths := TStringList.Create
@@ -118,6 +145,11 @@ begin
     eagleOptions.searchPath := ini.ReadBool('Search', 'searchPath', True);
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
     eagleOptions.prettySize := ini.ReadBool('Preferences', 'PrettySize', True);
+    eagleOptions.ctrlClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.altClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.shiftClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
 
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
@@ -150,6 +182,11 @@ begin
     ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
     ini.WriteBool('Preferences', 'PrettySize', eagleOptions.prettySize);
+    ini.WriteInteger('Preferences', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
+    ini.WriteInteger('Preferences', 'AltClickAction', Ord(eagleOptions.altClickAction));
+    ini.WriteInteger('Preferences', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));
+    ini.WriteInteger('Preferences', 'DoubleClickAction', Ord(eagleOptions.doubleClickAction));
+    ini.WriteInteger('Preferences', 'MiddleClickAction', Ord(eagleOptions.middleClickAction));
 
     for i := 0 to eagleOptions.paths.Count - 1 do
       ini.WriteString('Paths', 'Path' + IntToStr(i + 1), eagleOptions.paths[i]);

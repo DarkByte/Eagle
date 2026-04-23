@@ -26,24 +26,30 @@ type
     menuFile: TMenuItem;
     menuHelp: TMenuItem;
     MenuItem1: TMenuItem;
-    MenuItem2: TMenuItem;
+    mnuOpenFile: TMenuItem;
+    menuFileOpenFolder: TMenuItem;
+    menuFileOpen: TMenuItem;
+    MenuItem3: TMenuItem;
     mnuCopy: TMenuItem;
     mnuCopyName: TMenuItem;
     mnuCopyPathAndName: TMenuItem;
     mnuCopyPath: TMenuItem;
     menuTools: TMenuItem;
     menuOptions: TMenuItem;
-    menuOpenFolder: TMenuItem;
+    mnuOpenFolder: TMenuItem;
     timerFilterDebounce: TTimer;
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
+    procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure mnuCopyPathAndNameClick(Sender: TObject);
     procedure mnuCopyPathClick(Sender: TObject);
+    procedure mnuOpenFileClick(Sender: TObject);
     procedure timerFilterDebounceTimer(Sender: TObject);
 
     // FileTree context menu
-    procedure menuOpenFolderClick(Sender: TObject);
+    procedure mnuOpenFolderClick(Sender: TObject);
     procedure menuOptionsClick(Sender: TObject);
     procedure mnuCopyNameClick(Sender: TObject);
 
@@ -58,7 +64,7 @@ type
     FSortColumn: TColumnIndex;
     FSortDirection: TSortDirection;
 
-    function LoadFileRecordFromTree(var fileRecord: TEagleFileRecord): Boolean;
+    function LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): Boolean;
 
     procedure HandleLog(const AMessage: string);
     procedure HandleCreate(const APath: string);
@@ -190,14 +196,56 @@ begin
   end;
 end;
 
+procedure TForm1.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  clickedNode: PVirtualNode;
+  fileRecord: TEagleFileRecord;
+  itemAction: TItemAction;
+begin
+  itemAction := iaIgnore;
+
+  if (Button = mbLeft) and (ssDouble in Shift) then
+    itemAction := eagleOptions.doubleClickAction
+  else if Button = mbMiddle then
+    itemAction := eagleOptions.middleClickAction
+  else if (Button = mbLeft) and (ssCtrl in Shift) then
+    itemAction := eagleOptions.ctrlClickAction
+  else if (Button = mbLeft) and (ssAlt in Shift) then
+    itemAction := eagleOptions.altClickAction
+  else if (Button = mbLeft) and (ssShift in Shift) then
+    itemAction := eagleOptions.shiftClickAction;
+
+  if itemAction = iaIgnore then
+    Exit;
+
+  clickedNode := fileTree.GetNodeAt(X, Y);
+  if clickedNode = nil then
+    Exit;
+
+  fileTree.ClearSelection;
+  fileTree.FocusedNode := clickedNode;
+  fileTree.Selected[clickedNode] := True;
+
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  case itemAction of
+    iaOpenFile: mnuOpenFileClick(Sender);
+    iaOpenFolder: mnuOpenFolderClick(Sender);
+    iaCopyName: mnuCopyNameClick(Sender);
+    iaCopyPath: mnuCopyPathClick(Sender);
+    iaCopyPathName: mnuCopyPathAndNameClick(Sender);
+  end;
+end;
+
 // TEST
 procedure TForm1.FormClick(Sender: TObject);
 begin
-  //Memo1.Lines.Add(benchStamp.GetAllTimestamps);
+  Memo1.Lines.Add(benchStamp.GetAllTimestamps);
 end;
 
 {$REGION 'FileTree context menu'}
-function TForm1.LoadFileRecordFromTree(var fileRecord: TEagleFileRecord): Boolean;
+function TForm1.LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): Boolean;
 var
   selectedNode: PVirtualNode;
   nodeIndex: integer;
@@ -219,7 +267,7 @@ begin
   Result := True;
 end;
 
-procedure TForm1.menuOpenFolderClick(Sender: TObject);
+procedure TForm1.mnuOpenFolderClick(Sender: TObject);
 var
   folderPath, folderUrl: string;
   opened: boolean;
@@ -268,6 +316,24 @@ begin
     Exit;
 
   Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path)
+end;
+
+procedure TForm1.mnuOpenFileClick(Sender: TObject);
+var
+  fileRecord: TEagleFileRecord;
+  filePath: string;
+  opened: boolean;
+begin
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  filePath := IncludeTrailingPathDelimiter(fileRecord.Path) + fileRecord.Name;
+  if (filePath = '') or not FileExists(filePath) then
+    Exit;
+
+  opened := OpenDocument(filePath);
+  if not opened then
+    OpenURL('file://' + EncodePathForFileURL(filePath));
 end;
 {$ENDREGION}
 
