@@ -20,9 +20,13 @@ type
   TEagleOptions = record
     paths: TStringList;
     watchRecursively: boolean;
-    searchName: boolean;
     searchPath: boolean;
     prettySize: boolean;
+    showOnlyDate: boolean;
+    minimizeToTray: boolean;
+    closeToTray: boolean;
+    startMinimized: boolean;
+    runOnStartup: boolean;
     ctrlClickAction: TItemAction;
     altClickAction: TItemAction;
     shiftClickAction: TItemAction;
@@ -120,9 +124,13 @@ var
   path: string;
   i, Count: integer;
 begin
-  eagleOptions.searchName := True;
   eagleOptions.searchPath := True;
   eagleOptions.prettySize := True;
+  eagleOptions.showOnlyDate := False;
+  eagleOptions.minimizeToTray := False;
+  eagleOptions.closeToTray := False;
+  eagleOptions.startMinimized := False;
+  eagleOptions.runOnStartup := False;
   eagleOptions.ctrlClickAction := iaIgnore;
   eagleOptions.altClickAction := iaIgnore;
   eagleOptions.shiftClickAction := iaIgnore;
@@ -141,15 +149,20 @@ begin
 
   ini := TIniFile.Create(configPath);
   try
-    eagleOptions.searchName := ini.ReadBool('Search', 'searchName', True);
-    eagleOptions.searchPath := ini.ReadBool('Search', 'searchPath', True);
+    eagleOptions.searchPath := ini.ReadBool('Search', 'SearchPath', True);
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
     eagleOptions.prettySize := ini.ReadBool('Preferences', 'PrettySize', True);
+    eagleOptions.showOnlyDate := ini.ReadBool('Preferences', 'ShowOnlyDate', False);
+    eagleOptions.minimizeToTray := ini.ReadBool('Preferences', 'MinimizeToTray', False);
+    eagleOptions.closeToTray := ini.ReadBool('Preferences', 'CloseToTray', False);
     eagleOptions.ctrlClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.altClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.shiftClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
+
+    eagleOptions.startMinimized := ini.ReadBool('Preferences', 'StartMinimized', False);
+    eagleOptions.runOnStartup := ini.ReadBool('Preferences', 'RunOnStartup', False);
 
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
@@ -176,12 +189,16 @@ begin
 
   ini := TIniFile.Create(configPath);
   try
-    ini.WriteBool('Search', 'searchName', eagleOptions.searchName);
-    ini.WriteBool('Search', 'searchPath', eagleOptions.searchPath);
+    ini.WriteBool('Search', 'SearchPath', eagleOptions.searchPath);
 
     ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
     ini.WriteBool('Preferences', 'PrettySize', eagleOptions.prettySize);
+    ini.WriteBool('Preferences', 'ShowOnlyDate', eagleOptions.showOnlyDate);
+    ini.WriteBool('Preferences', 'MinimizeToTray', eagleOptions.minimizeToTray);
+    ini.WriteBool('Preferences', 'CloseToTray', eagleOptions.closeToTray);
+    ini.WriteBool('Preferences', 'StartMinimized', eagleOptions.startMinimized);
+    ini.WriteBool('Preferences', 'RunOnStartup', eagleOptions.runOnStartup);
     ini.WriteInteger('Preferences', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
     ini.WriteInteger('Preferences', 'AltClickAction', Ord(eagleOptions.altClickAction));
     ini.WriteInteger('Preferences', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));

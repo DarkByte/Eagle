@@ -3,6 +3,8 @@ Requires libsqlite3.
 On Ubuntu/Debian:
     sudo apt install libsqlite3
 
+    sudo apt install libsqlite3-dev (?)
+
 
 =================
 

@@ -26,6 +26,9 @@ type
     menuFile: TMenuItem;
     menuHelp: TMenuItem;
     MenuItem1: TMenuItem;
+    Separator1: TMenuItem;
+    traySearch: TMenuItem;
+    trayQuit: TMenuItem;
     mnuOpenFile: TMenuItem;
     menuFileOpenFolder: TMenuItem;
     menuFileOpen: TMenuItem;
@@ -37,12 +40,17 @@ type
     menuTools: TMenuItem;
     menuOptions: TMenuItem;
     mnuOpenFolder: TMenuItem;
+    TrayMenu: TPopupMenu;
     timerFilterDebounce: TTimer;
+    TrayIcon: TTrayIcon;
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
     procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure traySearchClick(Sender: TObject);
+    procedure trayQuitClick(Sender: TObject);
     procedure mnuCopyPathAndNameClick(Sender: TObject);
     procedure mnuCopyPathClick(Sender: TObject);
     procedure mnuOpenFileClick(Sender: TObject);
@@ -99,6 +107,8 @@ implementation
 
 procedure TForm1.FormCreate;
 begin
+  //Visible := not eagleOptions.startMinimized;
+
   FSortColumn := NoColumn;
   FSortDirection := sdAscending;
 
@@ -238,6 +248,25 @@ begin
   end;
 end;
 
+procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  // allow window to close?
+  if eagleOptions.closeToTray then begin;
+    CanClose := False;
+    Visible := False;
+  end;
+end;
+
+procedure TForm1.traySearchClick(Sender: TObject);
+begin
+  Self.Visible := not Self.Visible;
+end;
+
+procedure TForm1.trayQuitClick(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
 // TEST
 procedure TForm1.FormClick(Sender: TObject);
 begin
@@ -343,7 +372,7 @@ var
   filterText: string;
 begin
   filterText := Trim(edtFilter.Text);
-  FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchName, eagleOptions.searchPath);
+  FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchPath);
   SortFileRecords;
   PopulateFileTree;
 
@@ -371,7 +400,7 @@ begin
   Column.Width := widths[1];
 
   Column := fileTree.Header.Columns.Add;
-  Column.Text := 'Date modified';
+  Column.Text := 'Date';
   Column.Width := widths[2];
 
   fileTree.Header.MainColumn := 0;
@@ -503,7 +532,11 @@ begin
         CellText := PrettySize(FFileRecords[NodeIndex].Size)
       else
         CellText := IntToStr(FFileRecords[NodeIndex].Size);
-    3: CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time))
+    3:
+      if eagleOptions.showOnlyDate then
+        CellText := FormatDateTime('dd.mm.yyyy', FileDateToDateTime(FFileRecords[NodeIndex].Time))
+      else
+        CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time));
   end;
 end;
 

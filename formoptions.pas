@@ -18,15 +18,19 @@ type
 
     cbCtrlClick: TComboBox;
     cbAltClick: TComboBox;
+    cbCloseTray: TCheckBox;
     cbShiftClick: TComboBox;
     cbDoubleClick: TComboBox;
     cbMiddleClick: TComboBox;
 
-    cbName: TCheckBox;
-    cbPath: TCheckBox;
     cbRecursive: TCheckBox;
     cbPrettySize: TCheckBox;
-    GroupBox1: TGroupBox;
+    cbStartMinimized: TCheckBox;
+    cbRunStartup: TCheckBox;
+    cbShowOnlyDate: TCheckBox;
+    cbSearchPath: TCheckBox;
+    cbMinimizeTray: TCheckBox;
+
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
@@ -38,6 +42,7 @@ type
     tabLocations: TTabSheet;
     tabSearchResults: TTabSheet;
     tabSearch: TTabSheet;
+    tabBehavior: TTabSheet;
     procedure btnPathAddClick(Sender: TObject);
     procedure btnPathRemoveClick(Sender: TObject);
     procedure cbRecursiveChange(Sender: TObject);
@@ -81,36 +86,49 @@ begin
   LoadConfig;
 
   cbRecursive.Checked := eagleOptions.watchRecursively;
-  cbName.Checked      := eagleOptions.searchName;
-  cbPath.Checked      := eagleOptions.searchPath;
-  cbPrettySize.Checked := eagleOptions.prettySize;
 
-  cbCtrlClick.ItemIndex := Ord(eagleOptions.ctrlClickAction);
-  cbAltClick.ItemIndex := Ord(eagleOptions.altClickAction);
-  cbShiftClick.ItemIndex := Ord(eagleOptions.shiftClickAction);
+  cbSearchPath.Checked   := eagleOptions.searchPath;
+  cbPrettySize.Checked   := eagleOptions.prettySize;
+  cbShowOnlyDate.Checked := eagleOptions.showOnlyDate;
+
+  cbCtrlClick.ItemIndex   := Ord(eagleOptions.ctrlClickAction);
+  cbAltClick.ItemIndex    := Ord(eagleOptions.altClickAction);
+  cbShiftClick.ItemIndex  := Ord(eagleOptions.shiftClickAction);
   cbDoubleClick.ItemIndex := Ord(eagleOptions.doubleClickAction);
   cbMiddleClick.ItemIndex := Ord(eagleOptions.middleClickAction);
 
-  pathListBox.Items   := eagleOptions.paths;
+  pathListBox.Items := eagleOptions.paths;
+
+  cbMinimizeTray.Checked := eagleOptions.minimizeToTray;
+  cbCloseTray.Checked := eagleOptions.closeToTray;
+  cbStartMinimized.Checked := eagleOptions.startMinimized;
+  cbRunStartup.Checked     := eagleOptions.runOnStartup;
 end;
 
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
 begin
-  if eagleOptions.prettySize <> cbPrettySize.Checked then
+  if (eagleOptions.searchPath <> cbSearchPath.Checked) or (eagleOptions.prettySize <> cbPrettySize.Checked) or
+    (eagleOptions.showOnlyDate <> cbShowOnlyDate.Checked) then
     shouldRefreshFileTree := True;
 
   eagleOptions.watchRecursively := cbRecursive.Checked;
-  eagleOptions.searchName := cbName.Checked;
-  eagleOptions.searchPath := cbPath.Checked;
-  eagleOptions.prettySize := cbPrettySize.Checked;
 
-  eagleOptions.ctrlClickAction := TItemAction(cbCtrlClick.ItemIndex);
-  eagleOptions.altClickAction := TItemAction(cbAltClick.ItemIndex);
-  eagleOptions.shiftClickAction := TItemAction(cbShiftClick.ItemIndex);
+  eagleOptions.searchPath   := cbSearchPath.Checked;
+  eagleOptions.prettySize   := cbPrettySize.Checked;
+  eagleOptions.showOnlyDate := cbShowOnlyDate.Checked;
+
+  eagleOptions.ctrlClickAction   := TItemAction(cbCtrlClick.ItemIndex);
+  eagleOptions.altClickAction    := TItemAction(cbAltClick.ItemIndex);
+  eagleOptions.shiftClickAction  := TItemAction(cbShiftClick.ItemIndex);
   eagleOptions.doubleClickAction := TItemAction(cbDoubleClick.ItemIndex);
   eagleOptions.middleClickAction := TItemAction(cbMiddleClick.ItemIndex);
 
   eagleOptions.paths.Text := pathListBox.Items.Text;
+
+  eagleOptions.minimizeToTray := cbMinimizeTray.Checked;
+  eagleOptions.closeToTray := cbCloseTray.Checked;
+  eagleOptions.startMinimized := cbStartMinimized.Checked;
+  eagleOptions.runOnStartup   := cbRunStartup.Checked;
 
   SaveConfig;
   Close;

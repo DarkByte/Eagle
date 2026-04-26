@@ -3,19 +3,19 @@ program eagle;
 {$mode objfpc}{$H+}
 
 uses
-  {$IFDEF UNIX}
   cthreads,
-  {$ENDIF}
-  {$IFDEF HASAMIGA}
-  athreads,
-  {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, Dialogs, SysUtils, BaseUnix,
+  Forms,
+  Dialogs,
+  SysUtils,
+  BaseUnix,
   TimeCheck,
-  main, EagleDB, formOptions
-  { you can add units after this };
+  main,
+  EagleDB,
+  utils,
+  formOptions { you can add units after this };
 
-{$R *.res}
+  {$R *.res}
 
 const
   F_WRLCK = 1;
@@ -25,45 +25,49 @@ var
   InstanceLockHandle: cint = -1;
   InstanceLock: FLock;
 
-function AcquireSingleInstanceLock: Boolean;
-var
-  lockFilePath: string;
-begin
-  lockFilePath := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'eagle.lock';
-  InstanceLockHandle := fpOpen(PChar(lockFilePath), O_CREAT or O_RDWR, &666);
-  if InstanceLockHandle = -1 then
-    Exit(False);
+  function AcquireSingleInstanceLock: boolean;
+  var
+    lockFilePath: string;
+  begin
+    lockFilePath := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'eagle.lock';
+    InstanceLockHandle := fpOpen(PChar(lockFilePath), O_CREAT or O_RDWR, &666);
+    if InstanceLockHandle = -1 then
+      Exit(False);
 
-  FillChar(InstanceLock, SizeOf(InstanceLock), 0);
-  InstanceLock.l_type := F_WRLCK;
-  InstanceLock.l_whence := SEEK_SET;
-  InstanceLock.l_start := 0;
-  InstanceLock.l_len := 0;
+    FillChar(InstanceLock, SizeOf(InstanceLock), 0);
+    InstanceLock.l_type   := F_WRLCK;
+    InstanceLock.l_whence := SEEK_SET;
+    InstanceLock.l_start  := 0;
+    InstanceLock.l_len    := 0;
 
-  Result := FpFcntl(InstanceLockHandle, F_SETLK, InstanceLock) <> -1;
-  if not Result then begin
+    Result := FpFcntl(InstanceLockHandle, F_SETLK, InstanceLock) <> -1;
+    if not Result then begin
+      fpClose(InstanceLockHandle);
+      InstanceLockHandle := -1;
+    end;
+  end;
+
+  procedure ReleaseSingleInstanceLock;
+  begin
+    if InstanceLockHandle = -1 then
+      Exit;
+
+    InstanceLock.l_type := F_UNLCK;
+    FpFcntl(InstanceLockHandle, F_SETLK, InstanceLock);
     fpClose(InstanceLockHandle);
     InstanceLockHandle := -1;
   end;
-end;
-
-procedure ReleaseSingleInstanceLock;
-begin
-  if InstanceLockHandle = -1 then
-    Exit;
-
-  InstanceLock.l_type := F_UNLCK;
-  FpFcntl(InstanceLockHandle, F_SETLK, InstanceLock);
-  fpClose(InstanceLockHandle);
-  InstanceLockHandle := -1;
-end;
 
 begin
-  RequireDerivedFormResource:=True;
-  Application.Scaled:=True;
-  {$PUSH}{$WARN 5044 OFF}
-  Application.MainFormOnTaskbar:=True;
+  RequireDerivedFormResource := True;
+  Application.Scaled := True;
+
+  {$PUSH}
+  {$WARN 5044 OFF}
+  Application.MainFormOnTaskbar := True;
+  Application.ShowMainForm := not eagleOptions.startMinimized;
   {$POP}
+
   Application.Initialize;
 
   if not AcquireSingleInstanceLock then begin
@@ -78,4 +82,3 @@ begin
     ReleaseSingleInstanceLock;
   end;
 end.
-
