@@ -88,8 +88,6 @@ type
     procedure SetupDB;
     procedure RefreshFileTree;
     procedure SetupFileTree;
-    procedure SortFileRecords;
-    function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): integer;
     procedure PopulateFileTree;
     procedure FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
     procedure FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
@@ -174,13 +172,10 @@ begin
   if eagleOptions.allowIPC then begin
     StartEagleDuplexIPCServer;
     SetEagleDuplexIPCMessageHandler(@HandleIPCMessage);
-    Memo1.Lines.Add('Duplex IPC');
   end
   else begin
     StartEagleSimpleIPCServer;
     SetEagleSimpleIPCMessageHandler(@HandleIPCMessage);
-
-    Memo1.Lines.Add('Simple IPC');
   end;
 
   FIPCTimer := TTimer.Create(Self);
@@ -229,6 +224,7 @@ var
   i: integer;
 begin
   benchStamp.InsertTime('Starting watchThread');
+  Memo1.Lines.Add(benchStamp.StampNow('starting search...'));
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
@@ -447,7 +443,8 @@ var
 begin
   filterText := Trim(edtFilter.Text);
   FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchPath);
-  SortFileRecords;
+  if FSortColumn <> NoColumn then
+    SortFileRecords(FFileRecords, integer(FSortColumn), FSortDirection = sdDescending);
   PopulateFileTree;
 
   Memo1.Lines.Add('New records added: ' + IntToStr(Length(FFileRecords)));
@@ -501,7 +498,7 @@ begin
   fileTree.Header.SortColumn := FSortColumn;
   fileTree.Header.SortDirection := FSortDirection;
 
-  SortFileRecords;
+  SortFileRecords(FFileRecords, integer(FSortColumn), FSortDirection = sdDescending);
   PopulateFileTree;
 end;
 
@@ -534,86 +531,6 @@ begin
   end;
 end;
 
-function TForm1.CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): integer;
-begin
-  case AColumn of
-    0: Result := CompareText(A.Name, B.Name);
-    1: Result := CompareText(A.Path, B.Path);
-    2: begin
-      if A.Size < B.Size then
-        Result := -1
-      else
-        if A.Size > B.Size then
-          Result := 1
-        else
-          Result := 0;
-    end;
-    3: begin
-      if A.Time < B.Time then
-        Result := -1
-      else
-        if A.Time > B.Time then
-          Result := 1
-        else
-          Result := 0;
-    end;
-    else
-      Result := 0;
-  end;
-
-  // Keep ordering when primary values are equal.
-  if Result = 0 then begin
-    Result := CompareText(A.Path, B.Path);
-    if Result = 0 then
-      Result := CompareText(A.Name, B.Name);
-  end;
-
-  if FSortDirection = sdDescending then
-    Result := -Result;
-end;
-
-procedure TForm1.SortFileRecords;
-
-  procedure QuickSort(L, R: integer);
-  var
-    I, J: integer;
-    Pivot, Temp: TEagleFileRecord;
-  begin
-    I := L;
-    J := R;
-    Pivot := FFileRecords[(L + R) div 2];
-
-    repeat
-      while CompareFileRecords(FFileRecords[I], Pivot, FSortColumn) < 0 do
-        Inc(I);
-      while CompareFileRecords(FFileRecords[J], Pivot, FSortColumn) > 0 do
-        Dec(J);
-
-      if I <= J then begin
-        Temp := FFileRecords[I];
-        FFileRecords[I] := FFileRecords[J];
-        FFileRecords[J] := Temp;
-        Inc(I);
-        Dec(J);
-      end;
-    until I > J;
-
-    if L < J then
-      QuickSort(L, J);
-    if I < R then
-      QuickSort(I, R);
-  end;
-
-begin
-  if FSortColumn = NoColumn then
-    Exit;
-
-  if Length(FFileRecords) < 2 then
-    Exit;
-
-  QuickSort(0, High(FFileRecords));
-end;
-
 procedure TForm1.PopulateFileTree;
 begin
   fileTree.Clear;
@@ -625,13 +542,16 @@ end;
 {$REGION TWatchThread delegate methods}
 procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
+  Memo1.Lines.Add(benchStamp.StampNow('Finished search...'));
   benchStamp.InsertTime('Finished watchThread');
 
   Memo1.Lines.Add('Found ' + IntToStr(Length(AFiles)) + ' files!');
 
+  Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
   benchStamp.InsertTime('Updating DB');
   FEagleDB.SyncFiles(AFiles);
   benchStamp.InsertTime('Updated DB');
+  Memo1.Lines.Add(benchStamp.StampNow('Saved to DB!'));
 
   RefreshFileTree;
 

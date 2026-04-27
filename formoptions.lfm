@@ -13,7 +13,7 @@ object OptionsForm: TOptionsForm
   object btnSave: TButton
     Left = 508
     Height = 31
-    Top = 316
+    Top = 314
     Width = 75
     Anchors = [akRight, akBottom]
     Caption = 'Save'
@@ -23,15 +23,15 @@ object OptionsForm: TOptionsForm
   object pages: TPageControl
     Left = 8
     Height = 299
-    Top = 16
+    Top = 8
     Width = 575
-    ActivePage = tabSearchResults
+    ActivePage = tabLocations
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
@@ -41,11 +41,10 @@ object OptionsForm: TOptionsForm
         Left = 16
         Height = 111
         Top = 40
-        Width = 376
+        Width = 440
         ExtendedSelect = False
         Items.Strings = (
           '/mnt/Dogzilla/__LIBRARY'
-          '/mnt/Detritus'
         )
         ItemHeight = 21
         Style = lbOwnerDrawFixed
@@ -60,7 +59,7 @@ object OptionsForm: TOptionsForm
         Caption = 'Folders to watch:'
       end
       object btnPathAdd: TButton
-        Left = 400
+        Left = 464
         Height = 31
         Top = 40
         Width = 88
@@ -69,7 +68,7 @@ object OptionsForm: TOptionsForm
         OnClick = btnPathAddClick
       end
       object btnPathOptions: TButton
-        Left = 400
+        Left = 464
         Height = 31
         Top = 80
         Width = 88
@@ -78,7 +77,7 @@ object OptionsForm: TOptionsForm
         TabOrder = 2
       end
       object btnPathRemove: TButton
-        Left = 400
+        Left = 464
         Height = 31
         Top = 120
         Width = 88
@@ -260,6 +259,7 @@ object OptionsForm: TOptionsForm
     end
     object tabSearch: TTabSheet
       Caption = 'Search'
+      TabVisible = False
     end
     object tabAdvanced: TTabSheet
       Caption = 'Advanced'

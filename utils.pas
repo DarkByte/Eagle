@@ -5,7 +5,7 @@ unit utils;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, EagleDB;
 
 type
   TItemAction = (
@@ -36,6 +36,7 @@ type
   end;
 
 function CurrentTime: string;
+function FullCurrentTime: string;
 function GetEagleDataDir: string;
 function GetEagleConfigDir: string;
 
@@ -50,6 +51,10 @@ function IsIgnoredTempFileName(const FileName: string): boolean;
 
 function EncodePathForFileURL(const APath: string): string;
 function SumArray(list: array of integer): integer;
+
+// Sort FileTree data
+function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: integer; const ADescending: boolean): integer; inline;
+procedure SortFileRecords(var AFileRecords: TEagleFileRecords; const AColumn: integer; const ADescending: boolean);
 
 var
   eagleOptions: TEagleOptions;
@@ -75,6 +80,11 @@ begin
 end;
 
 function CurrentTime: string;
+begin
+  Result := FormatDateTime('hh:nn:ss.zzz', Now);
+end;
+
+function FullCurrentTime: string;
 begin
   Result := FormatDateTime('dd.mm hh:nn:ss.zzz', Now);
 end;
@@ -310,6 +320,83 @@ begin
   Result := 0;
   for i := Low(list) to High(list) do
     Inc(Result, list[i]);
+end;
+
+// Sort FileTree data
+function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: integer; const ADescending: boolean): integer;
+begin
+  case AColumn of
+    0: Result := CompareText(A.Name, B.Name);
+    1: Result := CompareText(A.Path, B.Path);
+    2: begin
+      if A.Size < B.Size then
+        Result := -1
+      else
+        if A.Size > B.Size then
+          Result := 1
+        else
+          Result := 0;
+    end;
+    3: begin
+      if A.Time < B.Time then
+        Result := -1
+      else
+        if A.Time > B.Time then
+          Result := 1
+        else
+          Result := 0;
+    end;
+    else
+      Result := 0;
+  end;
+
+  if Result = 0 then begin
+    Result := CompareText(A.Path, B.Path);
+    if Result = 0 then
+      Result := CompareText(A.Name, B.Name);
+  end;
+
+  if ADescending then
+    Result := -Result;
+end;
+
+procedure SortFileRecords(var AFileRecords: TEagleFileRecords; const AColumn: integer; const ADescending: boolean);
+
+  procedure QuickSort(L, R: integer);
+  var
+    I, J: integer;
+    Pivot, Temp: TEagleFileRecord;
+  begin
+    I := L;
+    J := R;
+    Pivot := AFileRecords[(L + R) div 2];
+
+    repeat
+      while CompareFileRecords(AFileRecords[I], Pivot, AColumn, ADescending) < 0 do
+        Inc(I);
+      while CompareFileRecords(AFileRecords[J], Pivot, AColumn, ADescending) > 0 do
+        Dec(J);
+
+      if I <= J then begin
+        Temp := AFileRecords[I];
+        AFileRecords[I] := AFileRecords[J];
+        AFileRecords[J] := Temp;
+        Inc(I);
+        Dec(J);
+      end;
+    until I > J;
+
+    if L < J then
+      QuickSort(L, J);
+    if I < R then
+      QuickSort(I, R);
+  end;
+
+begin
+  if Length(AFileRecords) < 2 then
+    Exit;
+
+  QuickSort(0, High(AFileRecords));
 end;
 
 begin
