@@ -27,6 +27,7 @@ type
     closeToTray: boolean;
     startMinimized: boolean;
     runOnStartup: boolean;
+    allowIPC: boolean;
     ctrlClickAction: TItemAction;
     altClickAction: TItemAction;
     shiftClickAction: TItemAction;
@@ -64,10 +65,10 @@ var
   configPath, configDir: string;
   lastPathCount: integer;
 
-function IntegerToItemAction(const value: integer; const defaultValue: TItemAction): TItemAction;
+function IntegerToItemAction(const Value: integer; const defaultValue: TItemAction): TItemAction;
 begin
-  if (value >= Ord(Low(TItemAction))) and (value <= Ord(High(TItemAction))) then
-    Result := TItemAction(value)
+  if (Value >= Ord(Low(TItemAction))) and (Value <= Ord(High(TItemAction))) then
+    Result := TItemAction(Value)
   else
     Result := defaultValue;
 end;
@@ -79,8 +80,7 @@ end;
 
 function GetEagleDataDir: string;
 var
-  xdgDataHome: string;
-  homeDir: string;
+  xdgDataHome, homeDir: string;
 begin
   xdgDataHome := Trim(GetEnvironmentVariable('XDG_DATA_HOME'));
   if xdgDataHome <> '' then begin
@@ -99,8 +99,7 @@ end;
 
 function GetEagleConfigDir: string;
 var
-  xdgConfigHome: string;
-  homeDir: string;
+  xdgConfigHome, homeDir: string;
 begin
   xdgConfigHome := Trim(GetEnvironmentVariable('XDG_CONFIG_HOME'));
   if xdgConfigHome <> '' then begin
@@ -131,6 +130,7 @@ begin
   eagleOptions.closeToTray := False;
   eagleOptions.startMinimized := False;
   eagleOptions.runOnStartup := False;
+  eagleOptions.allowIPC := False;
   eagleOptions.ctrlClickAction := iaIgnore;
   eagleOptions.altClickAction := iaIgnore;
   eagleOptions.shiftClickAction := iaIgnore;
@@ -142,27 +142,28 @@ begin
   else
     eagleOptions.paths.Clear;
 
-  configDir := IncludeTrailingPathDelimiter(GetEagleConfigDir);
+  configDir  := IncludeTrailingPathDelimiter(GetEagleConfigDir);
   configPath := configDir + INI_FILENAME;
   if not FileExists(configPath) then
     Exit;
 
   ini := TIniFile.Create(configPath);
   try
-    eagleOptions.searchPath := ini.ReadBool('Search', 'SearchPath', True);
+    eagleOptions.searchPath      := ini.ReadBool('Search', 'SearchPath', True);
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
-    eagleOptions.prettySize := ini.ReadBool('Preferences', 'PrettySize', True);
-    eagleOptions.showOnlyDate := ini.ReadBool('Preferences', 'ShowOnlyDate', False);
-    eagleOptions.minimizeToTray := ini.ReadBool('Preferences', 'MinimizeToTray', False);
-    eagleOptions.closeToTray := ini.ReadBool('Preferences', 'CloseToTray', False);
+    eagleOptions.prettySize      := ini.ReadBool('Preferences', 'PrettySize', True);
+    eagleOptions.showOnlyDate    := ini.ReadBool('Preferences', 'ShowOnlyDate', False);
+    eagleOptions.minimizeToTray  := ini.ReadBool('Preferences', 'MinimizeToTray', False);
+    eagleOptions.closeToTray     := ini.ReadBool('Preferences', 'CloseToTray', False);
     eagleOptions.ctrlClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
-    eagleOptions.altClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.altClickAction  := IntegerToItemAction(ini.ReadInteger('Preferences', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.shiftClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
 
     eagleOptions.startMinimized := ini.ReadBool('Preferences', 'StartMinimized', False);
     eagleOptions.runOnStartup := ini.ReadBool('Preferences', 'RunOnStartup', False);
+    eagleOptions.allowIPC := ini.ReadBool('Preferences', 'AllowIPC', False);
 
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
@@ -199,6 +200,7 @@ begin
     ini.WriteBool('Preferences', 'CloseToTray', eagleOptions.closeToTray);
     ini.WriteBool('Preferences', 'StartMinimized', eagleOptions.startMinimized);
     ini.WriteBool('Preferences', 'RunOnStartup', eagleOptions.runOnStartup);
+    ini.WriteBool('Preferences', 'AllowIPC', eagleOptions.allowIPC);
     ini.WriteInteger('Preferences', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
     ini.WriteInteger('Preferences', 'AltClickAction', Ord(eagleOptions.altClickAction));
     ini.WriteInteger('Preferences', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));

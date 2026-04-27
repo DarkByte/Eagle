@@ -9,7 +9,6 @@ uses
   Process, LCLIntf,ExtCtrls, Menus, Clipbrd,
   laz.VirtualTrees,
   utils, formoptions, eagleipc,
-  duplexipc,
   TimeCheck,
   WatchThread, EagleDB;
 
@@ -70,7 +69,6 @@ type
   private
     FWatchThread: TWatchThread;
     FEagleDB: TEagleDB;
-    FIPCServer: TDuplexIPC;
     FIPCTimer: TTimer;
 
     FFileRecords: TEagleFileRecords;
@@ -173,10 +171,17 @@ end;
 {$REGION Startup IPC}
 procedure TForm1.SetupIPCServer;
 begin
-  FIPCServer := TDuplexIPC.Create(nil);
-  FIPCServer.Configure(EAGLE_IPC_LOCAL_SERVER_ID, EAGLE_IPC_REMOTE_CLIENT_ID);
-  FIPCServer.OnMessage := @HandleIPCMessage;
-  FIPCServer.Start;
+  if eagleOptions.allowIPC then begin
+    StartEagleDuplexIPCServer;
+    SetEagleDuplexIPCMessageHandler(@HandleIPCMessage);
+    Memo1.Lines.Add('Duplex IPC');
+  end
+  else begin
+    StartEagleSimpleIPCServer;
+    SetEagleSimpleIPCMessageHandler(@HandleIPCMessage);
+
+    Memo1.Lines.Add('Simple IPC');
+  end;
 
   FIPCTimer := TTimer.Create(Self);
   FIPCTimer.Interval := 250;
@@ -191,21 +196,16 @@ begin
     FreeAndNil(FIPCTimer);
   end;
 
-  if Assigned(FIPCServer) then begin
-    if FIPCServer.Active then
-      FIPCServer.Stop;
-
-    FreeAndNil(FIPCServer);
-  end;
+  StopEagleDuplexIPCServer;
+  StopEagleSimpleIPCServer;
 end;
 
 procedure TForm1.timerIPCTimer(Sender: TObject);
 begin
-  if not Assigned(FIPCServer) then
-    Exit;
-
-  Memo1.Lines.Add('Polling IPC');
-  FIPCServer.Poll;
+  if eagleOptions.allowIPC then
+    PollEagleDuplexIPC
+  else
+    PollEagleSimpleIPC;
 end;
 
 procedure TForm1.HandleIPCMessage(Sender: TObject; const AMessage: string);
@@ -217,6 +217,8 @@ begin
     Visible := True;
     BringToFront;
     SetFocus;
+
+    Memo1.Lines.Add('ignore new instance')
   end;
 end;
 {$ENDREGION}
@@ -261,6 +263,11 @@ begin
   finally
     if options.shouldRefreshFileTree then
       RefreshFileTree;
+
+    if options.shouldRestartIPCServer then begin
+      StopIPCServer;
+      SetupIPCServer;
+    end;
 
     options.Free;
   end;

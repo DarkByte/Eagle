@@ -12,7 +12,7 @@ uses
   main,
   EagleDB,
   utils,
-  formOptions, eagleipc, duplexipc { you can add units after this };
+  formOptions, eagleipc { you can add units after this };
 
   {$R *.res}
 

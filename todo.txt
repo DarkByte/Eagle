@@ -1,0 +1,3 @@
+search edit
+    - add looking glass icon
+    - add "clear filter" button

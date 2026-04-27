@@ -1,4 +1,5 @@
 *.sqlite*
+*.lps
 eagle
 TimeCheck.pas
 MyObjectStringList.pas

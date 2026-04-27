@@ -30,6 +30,7 @@ type
     cbShowOnlyDate: TCheckBox;
     cbSearchPath: TCheckBox;
     cbMinimizeTray: TCheckBox;
+    cbAllowIPC: TCheckBox;
 
     Label1: TLabel;
     Label2: TLabel;
@@ -42,7 +43,7 @@ type
     tabLocations: TTabSheet;
     tabSearchResults: TTabSheet;
     tabSearch: TTabSheet;
-    tabBehavior: TTabSheet;
+    tabAdvanced: TTabSheet;
     procedure btnPathAddClick(Sender: TObject);
     procedure btnPathRemoveClick(Sender: TObject);
     procedure cbRecursiveChange(Sender: TObject);
@@ -56,6 +57,7 @@ type
     procedure EnableButtons(enable: boolean);
   public
     shouldRefreshFileTree: boolean;
+    shouldRestartIPCServer: boolean;
 
   end;
 
@@ -103,13 +105,15 @@ begin
   cbCloseTray.Checked := eagleOptions.closeToTray;
   cbStartMinimized.Checked := eagleOptions.startMinimized;
   cbRunStartup.Checked     := eagleOptions.runOnStartup;
+  cbAllowIPC.Checked       := eagleOptions.allowIPC;
 end;
 
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
 begin
-  if (eagleOptions.searchPath <> cbSearchPath.Checked) or (eagleOptions.prettySize <> cbPrettySize.Checked) or
-    (eagleOptions.showOnlyDate <> cbShowOnlyDate.Checked) then
-    shouldRefreshFileTree := True;
+  shouldRefreshFileTree := (eagleOptions.searchPath <> cbSearchPath.Checked) or (eagleOptions.prettySize <> cbPrettySize.Checked) or
+    (eagleOptions.showOnlyDate <> cbShowOnlyDate.Checked);
+
+  shouldRestartIPCServer := (eagleOptions.allowIPC <> cbAllowIPC.Checked);
 
   eagleOptions.watchRecursively := cbRecursive.Checked;
 
@@ -129,6 +133,7 @@ begin
   eagleOptions.closeToTray := cbCloseTray.Checked;
   eagleOptions.startMinimized := cbStartMinimized.Checked;
   eagleOptions.runOnStartup   := cbRunStartup.Checked;
+  eagleOptions.allowIPC       := cbAllowIPC.Checked;
 
   SaveConfig;
   Close;

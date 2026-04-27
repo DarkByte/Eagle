@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, simpleipc;
 
 type
-  TDuplexIPCMessageEvent = procedure(Sender: TObject; const AMessage: string) of object;
+  TIPCMessageEvent = procedure(Sender: TObject; const AMessage: string) of object;
   TDuplexIPCErrorEvent = procedure(Sender: TObject; const AMessage: string;
     const AException: Exception) of object;
 
@@ -21,7 +21,7 @@ type
     FRemoteServerID: string;
     FActive: boolean;
 
-    FOnMessage: TDuplexIPCMessageEvent;
+    FOnMessage: TIPCMessageEvent;
     FOnError: TDuplexIPCErrorEvent;
 
     procedure RaiseError(const AMessage: string; const AException: Exception);
@@ -43,7 +43,7 @@ type
     property LocalServerID: string read FLocalServerID;
     property RemoteServerID: string read FRemoteServerID;
 
-    property OnMessage: TDuplexIPCMessageEvent read FOnMessage write FOnMessage;
+    property OnMessage: TIPCMessageEvent read FOnMessage write FOnMessage;
     property OnError: TDuplexIPCErrorEvent read FOnError write FOnError;
   end;
 
