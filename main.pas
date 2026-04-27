@@ -25,7 +25,7 @@ type
     fileTreeMenu: TPopupMenu;
     menuFile: TMenuItem;
     menuHelp: TMenuItem;
-    MenuItem1: TMenuItem;
+    menuAbout: TMenuItem;
     Separator1: TMenuItem;
     traySearch: TMenuItem;
     trayQuit: TMenuItem;
@@ -50,6 +50,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormWindowStateChange(Sender: TObject);
+    procedure menuAboutClick(Sender: TObject);
     procedure traySearchClick(Sender: TObject);
     procedure trayQuitClick(Sender: TObject);
     procedure mnuCopyPathAndNameClick(Sender: TObject);
@@ -388,9 +389,18 @@ begin
   if (filePath = '') or not FileExists(filePath) then
     Exit;
 
-  opened := OpenDocument(filePath);
+  if Pos('''', filePath) > 1 then
+    opened := OpenDocument(EncodePathForFileURL(filePath))
+  else
+    opened := OpenDocument(filePath);
+
   if not opened then
     OpenURL('file://' + EncodePathForFileURL(filePath));
+end;
+
+procedure TForm1.menuAboutClick(Sender: TObject);
+begin
+  OpenURL('https://github.com/DarkByte/Eagle/blob/main/README.md');
 end;
 
 procedure TForm1.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

@@ -25,6 +25,8 @@ You can see a first scan (around 318k files) and folder-watch [here](./assets/ea
 
 ## Future plans
 
-- multiple search options
 - inter-process communication to allow other programs to get instant search results - in progress
-- shortcut to show the search window, where it will allow opening folders/files [not anymore, can be set from OS]
+- multiple search options
+- add option to list files in a treeview
+- mark files changed in the last X minutes / hours
+- [obsolete] shortcut to show the search window [not anymore, can be set from OS]

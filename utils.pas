@@ -160,7 +160,7 @@ begin
 
   ini := TIniFile.Create(configPath);
   try
-    eagleOptions.searchPath := ini.ReadBool('Search', 'SearchPath', True);
+    eagleOptions.searchPath   := ini.ReadBool('Search', 'SearchPath', True);
     eagleOptions.prettySize   := ini.ReadBool('Search', 'PrettySize', True);
     eagleOptions.showOnlyDate := ini.ReadBool('Search', 'ShowOnlyDate', False);
 
@@ -367,8 +367,8 @@ procedure SortFileRecords(var AFileRecords: TEagleFileRecords; const AColumn: in
     I, J: integer;
     Pivot, Temp: TEagleFileRecord;
   begin
-    I := L;
-    J := R;
+    I     := L;
+    J     := R;
     Pivot := AFileRecords[(L + R) div 2];
 
     repeat

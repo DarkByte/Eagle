@@ -204,8 +204,9 @@ object Form1: TForm1
       object MenuItem3: TMenuItem
         Caption = 'How To'
       end
-      object MenuItem1: TMenuItem
+      object menuAbout: TMenuItem
         Caption = 'About'
+        OnClick = menuAboutClick
       end
     end
   end
