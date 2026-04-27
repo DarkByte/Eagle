@@ -18,6 +18,7 @@ uses
 
 begin
   RequireDerivedFormResource := True;
+  Application.Title := 'Eagle';
   Application.Scaled := True;
 
   {$PUSH}
