@@ -19,8 +19,8 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="11"/>
-        <CursorPos Y="52"/>
+        <TopLine Value="249"/>
+        <CursorPos X="16" Y="261"/>
         <UsageCount Value="209"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
@@ -59,9 +59,9 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="formOptions"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="86"/>
-        <CursorPos X="56" Y="105"/>
-        <UsageCount Value="138"/>
+        <TopLine Value="85"/>
+        <CursorPos X="59" Y="107"/>
+        <UsageCount Value="154"/>
         <Loaded Value="True"/>
         <LoadedDesigner Value="True"/>
       </Unit>
@@ -70,7 +70,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="160"/>
         <CursorPos X="39" Y="186"/>
-        <UsageCount Value="8"/>
+        <UsageCount Value="6"/>
       </Unit>
       <Unit>
         <Filename Value="assets/options.pas"/>
@@ -79,7 +79,7 @@
         <UnitName Value="formOptions"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="14" Y="3"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="8"/>
       </Unit>
       <Unit>
         <Filename Value="/home/darkbyte/.fpc/lazarus/lcl/forms.pp"/>
@@ -87,18 +87,10 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="1966"/>
         <CursorPos X="3" Y="1991"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="8"/>
       </Unit>
     </Units>
     <JumpHistory HistoryIndex="29">
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="108" Column="28" TopLine="98"/>
-      </Position>
-      <Position>
-        <Filename Value="main.pas"/>
-        <Caret Line="109" Column="27" TopLine="98"/>
-      </Position>
       <Position>
         <Filename Value="formoptions.pas"/>
         <Caret Line="121" TopLine="20"/>
@@ -209,6 +201,14 @@
       </Position>
       <Position>
         <Filename Value="main.pas"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="15" Column="10" TopLine="11"/>
+      </Position>
+      <Position>
+        <Filename Value="main.pas"/>
+        <Caret Line="257" Column="29" TopLine="249"/>
       </Position>
     </JumpHistory>
     <RunParams>

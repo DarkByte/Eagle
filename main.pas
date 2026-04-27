@@ -49,6 +49,7 @@ type
     procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure FormWindowStateChange(Sender: TObject);
     procedure traySearchClick(Sender: TObject);
     procedure trayQuitClick(Sender: TObject);
     procedure mnuCopyPathAndNameClick(Sender: TObject);
@@ -250,16 +251,23 @@ end;
 
 procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  // allow window to close?
   if eagleOptions.closeToTray then begin;
     CanClose := False;
     Visible := False;
   end;
 end;
 
+procedure TForm1.FormWindowStateChange(Sender: TObject);
+begin
+  if (WindowState = wsMinimized) and eagleOptions.minimizeToTray then begin
+    WindowState := wsNormal;
+    Hide;
+  end;
+end;
+
 procedure TForm1.traySearchClick(Sender: TObject);
 begin
-  Self.Visible := not Self.Visible;
+  Self.Visible := True;
 end;
 
 procedure TForm1.trayQuitClick(Sender: TObject);

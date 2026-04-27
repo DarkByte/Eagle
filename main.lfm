@@ -11,6 +11,7 @@ object Form1: TForm1
   OnClick = FormClick
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnWindowStateChange = FormWindowStateChange
   object Memo1: TMemo
     Left = 776
     Height = 488
@@ -469,6 +470,7 @@ object Form1: TForm1
     Top = 456
     object traySearch: TMenuItem
       Caption = 'Search'
+      Default = True
       OnClick = traySearchClick
     end
     object Separator1: TMenuItem
