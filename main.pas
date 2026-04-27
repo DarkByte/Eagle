@@ -8,7 +8,8 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
   Process, LCLIntf,ExtCtrls, Menus, Clipbrd,
   laz.VirtualTrees,
-  utils, formoptions,
+  utils, formoptions, eagleipc,
+  duplexipc,
   TimeCheck,
   WatchThread, EagleDB;
 
@@ -56,6 +57,7 @@ type
     procedure mnuCopyPathClick(Sender: TObject);
     procedure mnuOpenFileClick(Sender: TObject);
     procedure timerFilterDebounceTimer(Sender: TObject);
+    procedure timerIPCTimer(Sender: TObject);
 
     // FileTree context menu
     procedure mnuOpenFolderClick(Sender: TObject);
@@ -68,6 +70,8 @@ type
   private
     FWatchThread: TWatchThread;
     FEagleDB: TEagleDB;
+    FIPCServer: TDuplexIPC;
+    FIPCTimer: TTimer;
 
     FFileRecords: TEagleFileRecords;
     FSortColumn: TColumnIndex;
@@ -93,6 +97,9 @@ type
     procedure FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
 
     procedure StopWatching;
+    procedure SetupIPCServer;
+    procedure StopIPCServer;
+    procedure HandleIPCMessage(Sender: TObject; const AMessage: string);
   public
 
   end;
@@ -108,10 +115,10 @@ implementation
 
 procedure TForm1.FormCreate;
 begin
-  //Visible := not eagleOptions.startMinimized;
-
   FSortColumn := NoColumn;
   FSortDirection := sdAscending;
+
+  SetupIPCServer;
 
   if not btnEagle.Enabled then
     Exit;
@@ -127,6 +134,7 @@ end;
 
 procedure TForm1.FormDestroy;
 begin
+  StopIPCServer;
   StopWatching;
 
   if Assigned(FEagleDB) then
@@ -161,6 +169,57 @@ begin
   FEagleDB := TEagleDB.Create;
   FEagleDB.Open;
 end;
+
+{$REGION Startup IPC}
+procedure TForm1.SetupIPCServer;
+begin
+  FIPCServer := TDuplexIPC.Create(nil);
+  FIPCServer.Configure(EAGLE_IPC_LOCAL_SERVER_ID, EAGLE_IPC_REMOTE_CLIENT_ID);
+  FIPCServer.OnMessage := @HandleIPCMessage;
+  FIPCServer.Start;
+
+  FIPCTimer := TTimer.Create(Self);
+  FIPCTimer.Interval := 250;
+  FIPCTimer.OnTimer := @timerIPCTimer;
+  FIPCTimer.Enabled := True;
+end;
+
+procedure TForm1.StopIPCServer;
+begin
+  if Assigned(FIPCTimer) then begin
+    FIPCTimer.Enabled := False;
+    FreeAndNil(FIPCTimer);
+  end;
+
+  if Assigned(FIPCServer) then begin
+    if FIPCServer.Active then
+      FIPCServer.Stop;
+
+    FreeAndNil(FIPCServer);
+  end;
+end;
+
+procedure TForm1.timerIPCTimer(Sender: TObject);
+begin
+  if not Assigned(FIPCServer) then
+    Exit;
+
+  Memo1.Lines.Add('Polling IPC');
+  FIPCServer.Poll;
+end;
+
+procedure TForm1.HandleIPCMessage(Sender: TObject; const AMessage: string);
+begin
+  if AMessage = 'show' then begin
+    if WindowState = wsMinimized then
+      WindowState := wsNormal;
+
+    Visible := True;
+    BringToFront;
+    SetFocus;
+  end;
+end;
+{$ENDREGION}
 
 // Actions
 procedure TForm1.btnEagleClick(Sender: TObject);

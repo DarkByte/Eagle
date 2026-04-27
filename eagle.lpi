@@ -64,6 +64,14 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="formOptions"/>
       </Unit>
+      <Unit>
+        <Filename Value="duplexipc.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="eagleipc.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
