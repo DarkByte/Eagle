@@ -273,48 +273,6 @@ begin
   end;
 end;
 
-procedure TForm1.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-var
-  clickedNode: PVirtualNode;
-  fileRecord: TEagleFileRecord;
-  itemAction: TItemAction;
-begin
-  itemAction := iaIgnore;
-
-  if (Button = mbLeft) and (ssDouble in Shift) then
-    itemAction := eagleOptions.doubleClickAction
-  else if Button = mbMiddle then
-    itemAction := eagleOptions.middleClickAction
-  else if (Button = mbLeft) and (ssCtrl in Shift) then
-    itemAction := eagleOptions.ctrlClickAction
-  else if (Button = mbLeft) and (ssAlt in Shift) then
-    itemAction := eagleOptions.altClickAction
-  else if (Button = mbLeft) and (ssShift in Shift) then
-    itemAction := eagleOptions.shiftClickAction;
-
-  if itemAction = iaIgnore then
-    Exit;
-
-  clickedNode := fileTree.GetNodeAt(X, Y);
-  if clickedNode = nil then
-    Exit;
-
-  fileTree.ClearSelection;
-  fileTree.FocusedNode := clickedNode;
-  fileTree.Selected[clickedNode] := True;
-
-  if not LoadFileRecordFromTree(fileRecord) then
-    Exit;
-
-  case itemAction of
-    iaOpenFile: mnuOpenFileClick(Sender);
-    iaOpenFolder: mnuOpenFolderClick(Sender);
-    iaCopyName: mnuCopyNameClick(Sender);
-    iaCopyPath: mnuCopyPathClick(Sender);
-    iaCopyPathName: mnuCopyPathAndNameClick(Sender);
-  end;
-end;
-
 procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if eagleOptions.closeToTray then begin;
@@ -438,6 +396,48 @@ begin
   if not opened then
     OpenURL('file://' + EncodePathForFileURL(filePath));
 end;
+
+procedure TForm1.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  clickedNode: PVirtualNode;
+  fileRecord: TEagleFileRecord;
+  itemAction: TItemAction;
+begin
+  itemAction := iaIgnore;
+
+  if (Button = mbLeft) and (ssDouble in Shift) then
+    itemAction := eagleOptions.doubleClickAction
+  else if Button = mbMiddle then
+    itemAction := eagleOptions.middleClickAction
+  else if (Button = mbLeft) and (ssCtrl in Shift) then
+    itemAction := eagleOptions.ctrlClickAction
+  else if (Button = mbLeft) and (ssAlt in Shift) then
+    itemAction := eagleOptions.altClickAction
+  else if (Button = mbLeft) and (ssShift in Shift) then
+    itemAction := eagleOptions.shiftClickAction;
+
+  if itemAction = iaIgnore then
+    Exit;
+
+  clickedNode := fileTree.GetNodeAt(X, Y);
+  if clickedNode = nil then
+    Exit;
+
+  fileTree.ClearSelection;
+  fileTree.FocusedNode := clickedNode;
+  fileTree.Selected[clickedNode] := True;
+
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  case itemAction of
+    iaOpenFile: mnuOpenFileClick(Sender);
+    iaOpenFolder: mnuOpenFolderClick(Sender);
+    iaCopyName: mnuCopyNameClick(Sender);
+    iaCopyPath: mnuCopyPathClick(Sender);
+    iaCopyPathName: mnuCopyPathAndNameClick(Sender);
+  end;
+end;
 {$ENDREGION}
 
 {$REGION 'FileTree'}
@@ -481,6 +481,57 @@ begin
   fileTree.TreeOptions.SelectionOptions := fileTree.TreeOptions.SelectionOptions + [toFullRowSelect];
   fileTree.OnHeaderClick := @FileTreeHeaderClick;
   fileTree.OnGetText := @FileTreeGetText;
+end;
+
+procedure TForm1.FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
+begin
+  if HitInfo.Column = NoColumn then
+    Exit;
+
+  if FSortColumn = HitInfo.Column then begin
+    if FSortDirection = sdAscending then
+      FSortDirection := sdDescending
+    else
+      FSortDirection := sdAscending;
+  end else begin
+    FSortColumn := HitInfo.Column;
+    FSortDirection := sdAscending;
+  end;
+
+  fileTree.Header.SortColumn := FSortColumn;
+  fileTree.Header.SortDirection := FSortDirection;
+
+  SortFileRecords;
+  PopulateFileTree;
+end;
+
+procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
+var
+  NodeIndex: integer;
+begin
+  CellText := '';
+
+  if Node = nil then
+    Exit;
+
+  NodeIndex := Sender.AbsoluteIndex(Node);
+  if (NodeIndex < 0) or (NodeIndex >= Length(FFileRecords)) then
+    Exit;
+
+  case Column of
+    0: CellText := FFileRecords[NodeIndex].Name;
+    1: CellText := FFileRecords[NodeIndex].Path;
+    2:
+      if eagleOptions.prettySize then
+        CellText := PrettySize(FFileRecords[NodeIndex].Size)
+      else
+        CellText := IntToStr(FFileRecords[NodeIndex].Size);
+    3:
+      if eagleOptions.showOnlyDate then
+        CellText := FormatDateTime('dd.mm.yyyy', FileDateToDateTime(FFileRecords[NodeIndex].Time))
+      else
+        CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time));
+  end;
 end;
 
 function TForm1.CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: TColumnIndex): integer;
@@ -561,57 +612,6 @@ begin
     Exit;
 
   QuickSort(0, High(FFileRecords));
-end;
-
-procedure TForm1.FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
-begin
-  if HitInfo.Column = NoColumn then
-    Exit;
-
-  if FSortColumn = HitInfo.Column then begin
-    if FSortDirection = sdAscending then
-      FSortDirection := sdDescending
-    else
-      FSortDirection := sdAscending;
-  end else begin
-    FSortColumn := HitInfo.Column;
-    FSortDirection := sdAscending;
-  end;
-
-  fileTree.Header.SortColumn := FSortColumn;
-  fileTree.Header.SortDirection := FSortDirection;
-
-  SortFileRecords;
-  PopulateFileTree;
-end;
-
-procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
-var
-  NodeIndex: integer;
-begin
-  CellText := '';
-
-  if Node = nil then
-    Exit;
-
-  NodeIndex := Sender.AbsoluteIndex(Node);
-  if (NodeIndex < 0) or (NodeIndex >= Length(FFileRecords)) then
-    Exit;
-
-  case Column of
-    0: CellText := FFileRecords[NodeIndex].Name;
-    1: CellText := FFileRecords[NodeIndex].Path;
-    2:
-      if eagleOptions.prettySize then
-        CellText := PrettySize(FFileRecords[NodeIndex].Size)
-      else
-        CellText := IntToStr(FFileRecords[NodeIndex].Size);
-    3:
-      if eagleOptions.showOnlyDate then
-        CellText := FormatDateTime('dd.mm.yyyy', FileDateToDateTime(FFileRecords[NodeIndex].Time))
-      else
-        CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time));
-  end;
 end;
 
 procedure TForm1.PopulateFileTree;

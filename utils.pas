@@ -41,6 +41,7 @@ function GetEagleConfigDir: string;
 
 procedure LoadConfig;
 procedure SaveConfig;
+procedure ApplyRunOnStartup;
 
 function PrettySize(size: int64): string;
 
@@ -149,22 +150,17 @@ begin
 
   ini := TIniFile.Create(configPath);
   try
-    eagleOptions.searchPath      := ini.ReadBool('Search', 'SearchPath', True);
+    eagleOptions.searchPath := ini.ReadBool('Search', 'SearchPath', True);
+    eagleOptions.prettySize   := ini.ReadBool('Search', 'PrettySize', True);
+    eagleOptions.showOnlyDate := ini.ReadBool('Search', 'ShowOnlyDate', False);
+
+    eagleOptions.ctrlClickAction   := IntegerToItemAction(ini.ReadInteger('Search', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.altClickAction    := IntegerToItemAction(ini.ReadInteger('Search', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.shiftClickAction  := IntegerToItemAction(ini.ReadInteger('Search', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Search', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Search', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
+
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
-    eagleOptions.prettySize      := ini.ReadBool('Preferences', 'PrettySize', True);
-    eagleOptions.showOnlyDate    := ini.ReadBool('Preferences', 'ShowOnlyDate', False);
-    eagleOptions.minimizeToTray  := ini.ReadBool('Preferences', 'MinimizeToTray', False);
-    eagleOptions.closeToTray     := ini.ReadBool('Preferences', 'CloseToTray', False);
-    eagleOptions.ctrlClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
-    eagleOptions.altClickAction  := IntegerToItemAction(ini.ReadInteger('Preferences', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
-    eagleOptions.shiftClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
-    eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
-    eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Preferences', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
-
-    eagleOptions.startMinimized := ini.ReadBool('Preferences', 'StartMinimized', False);
-    eagleOptions.runOnStartup := ini.ReadBool('Preferences', 'RunOnStartup', False);
-    eagleOptions.allowIPC := ini.ReadBool('Preferences', 'AllowIPC', False);
-
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
     for i := 1 to Count do begin
@@ -172,6 +168,13 @@ begin
       if path <> '' then
         eagleOptions.paths.Add(path);
     end;
+
+    eagleOptions.minimizeToTray := ini.ReadBool('Advanced', 'MinimizeToTray', False);
+    eagleOptions.closeToTray := ini.ReadBool('Advanced', 'CloseToTray', False);
+    eagleOptions.startMinimized := ini.ReadBool('Advanced', 'StartMinimized', False);
+    eagleOptions.runOnStartup := ini.ReadBool('Advanced', 'RunOnStartup', False);
+    eagleOptions.allowIPC := ini.ReadBool('Advanced', 'AllowIPC', False);
+
   finally
     ini.Free;
   end;
@@ -191,30 +194,65 @@ begin
   ini := TIniFile.Create(configPath);
   try
     ini.WriteBool('Search', 'SearchPath', eagleOptions.searchPath);
+    ini.WriteBool('Search', 'PrettySize', eagleOptions.prettySize);
+    ini.WriteBool('Search', 'ShowOnlyDate', eagleOptions.showOnlyDate);
+
+    ini.WriteInteger('Search', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
+    ini.WriteInteger('Search', 'AltClickAction', Ord(eagleOptions.altClickAction));
+    ini.WriteInteger('Search', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));
+    ini.WriteInteger('Search', 'DoubleClickAction', Ord(eagleOptions.doubleClickAction));
+    ini.WriteInteger('Search', 'MiddleClickAction', Ord(eagleOptions.middleClickAction));
 
     ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
-    ini.WriteBool('Preferences', 'PrettySize', eagleOptions.prettySize);
-    ini.WriteBool('Preferences', 'ShowOnlyDate', eagleOptions.showOnlyDate);
-    ini.WriteBool('Preferences', 'MinimizeToTray', eagleOptions.minimizeToTray);
-    ini.WriteBool('Preferences', 'CloseToTray', eagleOptions.closeToTray);
-    ini.WriteBool('Preferences', 'StartMinimized', eagleOptions.startMinimized);
-    ini.WriteBool('Preferences', 'RunOnStartup', eagleOptions.runOnStartup);
-    ini.WriteBool('Preferences', 'AllowIPC', eagleOptions.allowIPC);
-    ini.WriteInteger('Preferences', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
-    ini.WriteInteger('Preferences', 'AltClickAction', Ord(eagleOptions.altClickAction));
-    ini.WriteInteger('Preferences', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));
-    ini.WriteInteger('Preferences', 'DoubleClickAction', Ord(eagleOptions.doubleClickAction));
-    ini.WriteInteger('Preferences', 'MiddleClickAction', Ord(eagleOptions.middleClickAction));
-
     for i := 0 to eagleOptions.paths.Count - 1 do
       ini.WriteString('Paths', 'Path' + IntToStr(i + 1), eagleOptions.paths[i]);
 
     if eagleOptions.paths.Count < lastPathCount then
       for i := eagleOptions.paths.Count to lastPathCount do
         ini.DeleteKey('Paths', 'Path' + IntToStr(i + 1));
+
+    ini.WriteBool('Advanced', 'MinimizeToTray', eagleOptions.minimizeToTray);
+    ini.WriteBool('Advanced', 'CloseToTray', eagleOptions.closeToTray);
+    ini.WriteBool('Advanced', 'StartMinimized', eagleOptions.startMinimized);
+    ini.WriteBool('Advanced', 'RunOnStartup', eagleOptions.runOnStartup);
+    ini.WriteBool('Advanced', 'AllowIPC', eagleOptions.allowIPC);
   finally
     ini.Free;
+  end;
+end;
+
+procedure ApplyRunOnStartup;
+const
+  DESKTOP_FILENAME = 'eagle.desktop';
+var
+  autostartDir: string;
+  desktopPath: string;
+  f: TextFile;
+begin
+  autostartDir := IncludeTrailingPathDelimiter(GetEnvironmentVariable('HOME')) + '.config' + PathDelim + 'autostart';
+  desktopPath  := IncludeTrailingPathDelimiter(autostartDir) + DESKTOP_FILENAME;
+
+  if eagleOptions.runOnStartup then begin
+    if not DirectoryExists(autostartDir) then
+      ForceDirectories(autostartDir);
+
+    AssignFile(f, desktopPath);
+    Rewrite(f);
+    try
+      WriteLn(f, '[Desktop Entry]');
+      WriteLn(f, 'Type=Application');
+      WriteLn(f, 'Name=Eagle');
+      WriteLn(f, 'Exec=' + ParamStr(0));
+      WriteLn(f, 'Hidden=false');
+      WriteLn(f, 'X-GNOME-Autostart-enabled=true');
+      WriteLn(f, 'X-GNOME-Autostart-Delay=15');
+    finally
+      CloseFile(f);
+    end;
+  end else begin
+    if FileExists(desktopPath) then
+      DeleteFile(desktopPath);
   end;
 end;
 

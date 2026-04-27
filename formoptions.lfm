@@ -25,17 +25,17 @@ object OptionsForm: TOptionsForm
     Height = 299
     Top = 16
     Width = 575
-    ActivePage = tabAdvanced
+    ActivePage = tabSearchResults
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 3
+    TabIndex = 1
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object pathListBox: TListBox
         Left = 16
@@ -101,7 +101,7 @@ object OptionsForm: TOptionsForm
     end
     object tabSearchResults: TTabSheet
       Caption = 'Search results'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object cbPrettySize: TCheckBox
         Left = 16
@@ -263,7 +263,7 @@ object OptionsForm: TOptionsForm
     end
     object tabAdvanced: TTabSheet
       Caption = 'Advanced'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object cbStartMinimized: TCheckBox
         Left = 16

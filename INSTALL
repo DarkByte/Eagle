@@ -5,9 +5,14 @@ On Ubuntu/Debian:
 
     sudo apt install libsqlite3-dev (?)
 
-
 =================
 
+Random tidbits:
+
+Alt + click drags the whole window (Linux Mint)
+    System settings - Windows - Behaviour - Special key to move and resize windows
+
+=================
 
 Create distribution packages (best practice):
 

@@ -136,6 +136,7 @@ begin
   eagleOptions.allowIPC       := cbAllowIPC.Checked;
 
   SaveConfig;
+  ApplyRunOnStartup;
   Close;
 end;
 
