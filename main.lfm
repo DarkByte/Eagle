@@ -1,4 +1,4 @@
-object Form1: TForm1
+object MainForm: TMainForm
   Left = 359
   Height = 520
   Top = 1330
@@ -6,9 +6,12 @@ object Form1: TForm1
   Caption = 'Eagle'
   ClientHeight = 520
   ClientWidth = 943
+  Constraints.MinHeight = 300
+  Constraints.MinWidth = 800
   Menu = MainMenu1
   LCLVersion = '4.6.0.0'
   OnClick = FormClick
+  OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnWindowStateChange = FormWindowStateChange

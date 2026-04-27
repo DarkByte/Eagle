@@ -25,13 +25,13 @@ object OptionsForm: TOptionsForm
     Height = 299
     Top = 8
     Width = 575
-    ActivePage = tabAdvanced
+    ActivePage = tabSearchResults
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 3
+    TabIndex = 1
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
@@ -49,6 +49,7 @@ object OptionsForm: TOptionsForm
         ItemHeight = 21
         Style = lbOwnerDrawFixed
         TabOrder = 0
+        TopIndex = -1
         OnSelectionChange = pathListBoxSelectionChange
       end
       object Label1: TLabel
@@ -255,6 +256,31 @@ object OptionsForm: TOptionsForm
         Width = 141
         Caption = 'Search also in path'
         TabOrder = 7
+      end
+      object cbLimitResults: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 145
+        Width = 117
+        Caption = 'Limit results to:'
+        TabOrder = 8
+      end
+      object edtLimitCount: TEdit
+        Left = 135
+        Height = 31
+        Top = 142
+        Width = 65
+        Enabled = False
+        TabOrder = 9
+        Text = '1000'
+      end
+      object cbAlternatingColors: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 112
+        Width = 184
+        Caption = 'Use alternating row colors'
+        TabOrder = 10
       end
     end
     object tabSearch: TTabSheet

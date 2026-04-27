@@ -35,7 +35,7 @@ type
     procedure Open;
     procedure Close;
     function IsOpen: boolean;
-    function GetFiles(const AFilterText: string; searchPath: boolean): TEagleFileRecords;
+    function GetFiles(const AFilterText: string; searchPath: boolean; limit: Integer = 0): TEagleFileRecords;
 
     procedure AddFile(Name, path: string; size: int64; timestamp: longint);
     procedure DeleteFile(const fullPath: string);
@@ -124,10 +124,10 @@ begin
   Result := FConnection.Connected;
 end;
 
-function TEagleDB.GetFiles(const AFilterText: string; searchPath: boolean): TEagleFileRecords;
+function TEagleDB.GetFiles(const AFilterText: string; searchPath: boolean; limit: Integer = 0): TEagleFileRecords;
 var
   query: TSQLQuery;
-  filterText: string;
+  filterText, limitText, queryStr: string;
   itemCount: integer;
 begin
   SetLength(Result, 0);
@@ -138,25 +138,27 @@ begin
   if not FTransaction.Active then
     FTransaction.StartTransaction;
 
+  if limit > 0 then
+    limitText := ' LIMIT ' + IntToStr(limit)
+  else
+    limitText := '';
+
+  queryStr := 'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files %s ORDER BY path, name' + limitText;
+
   query := TSQLQuery.Create(nil);
   try
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
 
-    // TODO: use generic sql command (for clarity)
     filterText := Trim(AFilterText);
-    if filterText = '' then begin
-      query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files ORDER BY path, name';
-    end
+    if filterText = '' then
+      query.SQL.Text := Format(queryStr, [''])
     else if searchPath then begin
-      query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE (name LIKE :filter OR path LIKE :filter) ORDER BY path, name';
+      query.SQL.Text := Format(queryStr, ['WHERE (name LIKE :filter OR path LIKE :filter)']);
       query.ParamByName('filter').AsString := '%' + filterText + '%';
     end
     else begin
-      query.SQL.Text :=
-        'SELECT substr(name, 1) as name, substr(path, 1) as path, size, timestamp FROM files WHERE name LIKE :filter ORDER BY path, name';
+      query.SQL.Text := Format(queryStr, ['WHERE (name LIKE :filter)']);
       query.ParamByName('filter').AsString := '%' + filterText + '%';
     end;
 

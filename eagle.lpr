@@ -31,7 +31,6 @@ begin
 
   if isAnotherInstanceRunning then
     Halt;
-
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 end.

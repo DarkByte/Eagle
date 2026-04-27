@@ -31,6 +31,9 @@ type
     cbSearchPath: TCheckBox;
     cbMinimizeTray: TCheckBox;
     cbAllowIPC: TCheckBox;
+    cbLimitResults: TCheckBox;
+    cbAlternatingColors: TCheckBox;
+    edtLimitCount: TEdit;
 
     Label1: TLabel;
     Label2: TLabel;
@@ -47,6 +50,7 @@ type
     tabAdvanced: TTabSheet;
     procedure btnPathAddClick(Sender: TObject);
     procedure btnPathRemoveClick(Sender: TObject);
+    procedure cbLimitResultsChange(Sender: TObject);
     procedure cbRecursiveChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure pathListBoxSelectionChange(Sender: TObject; User: boolean);
@@ -93,6 +97,10 @@ begin
   cbSearchPath.Checked   := eagleOptions.searchPath;
   cbPrettySize.Checked   := eagleOptions.prettySize;
   cbShowOnlyDate.Checked := eagleOptions.showOnlyDate;
+  cbAlternatingColors.Checked := eagleOptions.alternatingColors;
+  cbLimitResults.Checked := eagleOptions.limitResults;
+  edtLimitCount.Text := IntToStr(eagleOptions.limitCount);
+  edtLimitCount.Enabled := cbLimitResults.Checked;
 
   cbCtrlClick.ItemIndex   := Ord(eagleOptions.ctrlClickAction);
   cbAltClick.ItemIndex    := Ord(eagleOptions.altClickAction);
@@ -112,7 +120,8 @@ end;
 procedure TOptionsForm.btnSaveClick(Sender: TObject);
 begin
   shouldRefreshFileTree := (eagleOptions.searchPath <> cbSearchPath.Checked) or (eagleOptions.prettySize <> cbPrettySize.Checked) or
-    (eagleOptions.showOnlyDate <> cbShowOnlyDate.Checked);
+    (eagleOptions.showOnlyDate <> cbShowOnlyDate.Checked) or (eagleOptions.alternatingColors <> cbAlternatingColors.Checked) or
+    (eagleOptions.limitResults <> cbLimitResults.Checked) or (eagleOptions.limitCount <> StrToIntDef(edtLimitCount.Text, 1000));
 
   shouldRestartIPCServer := (eagleOptions.allowIPC <> cbAllowIPC.Checked);
 
@@ -121,6 +130,11 @@ begin
   eagleOptions.searchPath   := cbSearchPath.Checked;
   eagleOptions.prettySize   := cbPrettySize.Checked;
   eagleOptions.showOnlyDate := cbShowOnlyDate.Checked;
+  eagleOptions.alternatingColors := cbAlternatingColors.Checked;
+  eagleOptions.limitResults := cbLimitResults.Checked;
+  eagleOptions.limitCount := StrToIntDef(edtLimitCount.Text, 1000);
+  if eagleOptions.limitCount < 1 then
+    eagleOptions.limitCount := 1;
 
   eagleOptions.ctrlClickAction   := TItemAction(cbCtrlClick.ItemIndex);
   eagleOptions.altClickAction    := TItemAction(cbAltClick.ItemIndex);
@@ -142,6 +156,11 @@ begin
 end;
 
 // ACTIONS
+procedure TOptionsForm.cbLimitResultsChange(Sender: TObject);
+begin
+  edtLimitCount.Enabled := cbLimitResults.Checked;
+end;
+
 procedure TOptionsForm.cbRecursiveChange(Sender: TObject);
 begin
   watchRecursively := cbRecursive.Checked;
@@ -150,6 +169,7 @@ end;
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
   pages.ActivePageIndex := 0;
+  cbLimitResults.OnChange := @cbLimitResultsChange;
 end;
 
 procedure TOptionsForm.btnPathRemoveClick(Sender: TObject);

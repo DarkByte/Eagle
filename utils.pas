@@ -5,7 +5,7 @@ unit utils;
 interface
 
 uses
-  Classes, SysUtils, EagleDB;
+  Classes, SysUtils, Graphics, EagleDB;
 
 type
   TItemAction = (
@@ -23,16 +23,28 @@ type
     searchPath: boolean;
     prettySize: boolean;
     showOnlyDate: boolean;
+    alternatingColors: boolean;
+    limitResults: boolean;
+    limitCount: integer;
+
     minimizeToTray: boolean;
     closeToTray: boolean;
     startMinimized: boolean;
     runOnStartup: boolean;
     allowIPC: boolean;
+
     ctrlClickAction: TItemAction;
     altClickAction: TItemAction;
     shiftClickAction: TItemAction;
     doubleClickAction: TItemAction;
     middleClickAction: TItemAction;
+
+    colName: integer;
+    colPath: integer;
+    colSize: integer;
+    colDate: integer;
+    appWidth: integer;
+    appHeight: integer;
   end;
 
 function CurrentTime: string;
@@ -51,6 +63,8 @@ function IsIgnoredTempFileName(const FileName: string): boolean;
 
 function EncodePathForFileURL(const APath: string): string;
 function SumArray(list: array of integer): integer;
+
+procedure ColorToRGB(color: TColor; out r, g, b: byte);
 
 // Sort FileTree data
 function CompareFileRecords(const A, B: TEagleFileRecord; const AColumn: integer; const ADescending: boolean): integer; inline;
@@ -128,6 +142,12 @@ begin
 end;
 
 // INI file
+procedure Limit(out value: integer; min: integer);
+begin
+  if value < min then
+    value := min;
+end;
+
 procedure LoadConfig;
 var
   ini: TIniFile;
@@ -147,6 +167,13 @@ begin
   eagleOptions.shiftClickAction := iaIgnore;
   eagleOptions.doubleClickAction := iaIgnore;
   eagleOptions.middleClickAction := iaIgnore;
+
+  eagleOptions.colName := 200;
+  eagleOptions.colPath := 250;
+  eagleOptions.colSize := 80;
+  eagleOptions.colDate := 120;
+  eagleOptions.appWidth := 800;
+  eagleOptions.appHeight := 300;
 
   if not Assigned(eagleOptions.paths) then
     eagleOptions.paths := TStringList.Create
@@ -185,6 +212,12 @@ begin
     eagleOptions.runOnStartup := ini.ReadBool('Advanced', 'RunOnStartup', False);
     eagleOptions.allowIPC := ini.ReadBool('Advanced', 'AllowIPC', False);
 
+    eagleOptions.colName := ini.ReadInteger('Layout', 'ColName', eagleOptions.colName);
+    eagleOptions.colPath := ini.ReadInteger('Layout', 'ColPath', eagleOptions.colPath);
+    eagleOptions.colSize := ini.ReadInteger('Layout', 'ColSize', eagleOptions.colSize);
+    eagleOptions.colDate := ini.ReadInteger('Layout', 'ColDate', eagleOptions.colDate);
+    eagleOptions.appWidth := ini.ReadInteger('Layout', 'AppWidth', eagleOptions.appWidth);
+    eagleOptions.appHeight := ini.ReadInteger('Layout', 'AppHeight', eagleOptions.appHeight);
   finally
     ini.Free;
   end;
@@ -227,6 +260,13 @@ begin
     ini.WriteBool('Advanced', 'StartMinimized', eagleOptions.startMinimized);
     ini.WriteBool('Advanced', 'RunOnStartup', eagleOptions.runOnStartup);
     ini.WriteBool('Advanced', 'AllowIPC', eagleOptions.allowIPC);
+
+    ini.WriteInteger('Layout', 'ColName', eagleOptions.colName);
+    ini.WriteInteger('Layout', 'ColPath', eagleOptions.colPath);
+    ini.WriteInteger('Layout', 'ColSize', eagleOptions.colSize);
+    ini.WriteInteger('Layout', 'ColDate', eagleOptions.colDate);
+    ini.WriteInteger('Layout', 'AppWidth', eagleOptions.appWidth);
+    ini.WriteInteger('Layout', 'AppHeight', eagleOptions.appHeight);
   finally
     ini.Free;
   end;
@@ -320,6 +360,16 @@ begin
   Result := 0;
   for i := Low(list) to High(list) do
     Inc(Result, list[i]);
+end;
+
+procedure ColorToRGB(color: TColor; out r, g, b: byte);
+var
+  rgbColor: LongWord;
+begin
+  rgbColor := LongWord(Graphics.ColorToRGB(color));
+  R := byte(rgbColor and $FF);
+  G := byte((rgbColor shr 8) and $FF);
+  B := byte((rgbColor shr 16) and $FF);
 end;
 
 // Sort FileTree data

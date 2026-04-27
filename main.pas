@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  Process, LCLIntf,ExtCtrls, Menus, Clipbrd,
+  Process, LCLIntf, ExtCtrls, Menus, Clipbrd,
   laz.VirtualTrees,
   utils, formoptions, eagleipc,
   TimeCheck,
@@ -14,8 +14,8 @@ uses
 
 type
 
-  { TForm1 }
-  TForm1 = class(TForm)
+  { TMainForm }
+  TMainForm = class(TForm)
     btnEagle: TBitBtn;
     edtFilter: TEdit;
     fileTree: TLazVirtualStringTree;
@@ -46,9 +46,9 @@ type
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
-    procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
-    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: integer);
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormWindowStateChange(Sender: TObject);
     procedure menuAboutClick(Sender: TObject);
     procedure traySearchClick(Sender: TObject);
@@ -76,7 +76,9 @@ type
     FSortColumn: TColumnIndex;
     FSortDirection: TSortDirection;
 
-    function LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): Boolean;
+    Row1RGB, Row2RGB: TColor;
+
+    function LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): boolean;
 
     procedure HandleLog(const AMessage: string);
     procedure HandleCreate(const APath: string);
@@ -87,11 +89,17 @@ type
 
     procedure SetupWatchThread;
     procedure SetupDB;
+
     procedure RefreshFileTree;
     procedure SetupFileTree;
     procedure PopulateFileTree;
+
     procedure FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
     procedure FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
+    procedure FileTreeBeforeCellPaint(Sender: TBaseVirtualTree; TargetCanvas: TCanvas; Node: PVirtualNode;
+      Column: TColumnIndex; CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
+
+    procedure SavePositions;
 
     procedure StopWatching;
     procedure SetupIPCServer;
@@ -102,15 +110,15 @@ type
   end;
 
 var
-  Form1: TForm1;
+  MainForm: TMainForm;
 
 implementation
 
 {$R *.lfm}
 
-{ TForm1 }
+{ TMainForm }
 
-procedure TForm1.FormCreate;
+procedure TMainForm.FormCreate;
 begin
   FSortColumn := NoColumn;
   FSortDirection := sdAscending;
@@ -123,13 +131,22 @@ begin
   SetupDB;
   SetupWatchThread;
 
+  Width := eagleOptions.appWidth;
+  Height := eagleOptions.appHeight;
+
   benchStamp.InsertTime('Starting from DB');
   SetupFileTree;
   RefreshFileTree;
   benchStamp.InsertTime('Finished from DB');
 end;
 
-procedure TForm1.FormDestroy;
+procedure TMainForm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  SavePositions;
+  SaveConfig;
+end;
+
+procedure TMainForm.FormDestroy;
 begin
   StopIPCServer;
   StopWatching;
@@ -138,7 +155,7 @@ begin
     FEagleDB.Free;
 end;
 
-procedure TForm1.SetupWatchThread;
+procedure TMainForm.SetupWatchThread;
 begin
   FWatchThread := TWatchThread.Create;
   FWatchThread.SetOnLog(@HandleLog);
@@ -149,7 +166,7 @@ begin
   FWatchThread.SetOnScanProgress(@HandleScanProgress);
 end;
 
-procedure TForm1.StopWatching;
+procedure TMainForm.StopWatching;
 begin
   if Assigned(FWatchThread) then begin
     FWatchThread.Terminate;
@@ -161,20 +178,34 @@ begin
   btnEagle.Enabled := True;
 end;
 
-procedure TForm1.SetupDB;
+procedure TMainForm.SetupDB;
 begin
   FEagleDB := TEagleDB.Create;
   FEagleDB.Open;
 end;
 
+procedure TMainForm.SavePositions;
+begin
+  if fileTree.Header.Columns.Count < 4 then
+    Exit;
+
+  with eagleOptions do begin
+    colName := fileTree.Header.Columns[0].Width;
+    colPath := fileTree.Header.Columns[1].Width;
+    colSize := fileTree.Header.Columns[2].Width;
+    colDate := fileTree.Header.Columns[3].Width;
+    appWidth := Width;
+    appHeight := Height;
+  end;
+end;
+
 {$REGION Startup IPC}
-procedure TForm1.SetupIPCServer;
+procedure TMainForm.SetupIPCServer;
 begin
   if eagleOptions.allowIPC then begin
     StartEagleDuplexIPCServer;
     SetEagleDuplexIPCMessageHandler(@HandleIPCMessage);
-  end
-  else begin
+  end else begin
     StartEagleSimpleIPCServer;
     SetEagleSimpleIPCMessageHandler(@HandleIPCMessage);
   end;
@@ -185,7 +216,7 @@ begin
   FIPCTimer.Enabled := True;
 end;
 
-procedure TForm1.StopIPCServer;
+procedure TMainForm.StopIPCServer;
 begin
   if Assigned(FIPCTimer) then begin
     FIPCTimer.Enabled := False;
@@ -196,7 +227,7 @@ begin
   StopEagleSimpleIPCServer;
 end;
 
-procedure TForm1.timerIPCTimer(Sender: TObject);
+procedure TMainForm.timerIPCTimer(Sender: TObject);
 begin
   if eagleOptions.allowIPC then
     PollEagleDuplexIPC
@@ -204,7 +235,7 @@ begin
     PollEagleSimpleIPC;
 end;
 
-procedure TForm1.HandleIPCMessage(Sender: TObject; const AMessage: string);
+procedure TMainForm.HandleIPCMessage(Sender: TObject; const AMessage: string);
 begin
   if AMessage = 'show' then begin
     if WindowState = wsMinimized then
@@ -214,13 +245,13 @@ begin
     BringToFront;
     SetFocus;
 
-    Memo1.Lines.Add('ignore new instance')
+    Memo1.Lines.Add('ignore new instance');
   end;
 end;
 {$ENDREGION}
 
 // Actions
-procedure TForm1.btnEagleClick(Sender: TObject);
+procedure TMainForm.btnEagleClick(Sender: TObject);
 var
   i: integer;
 begin
@@ -238,19 +269,19 @@ begin
   end;
 end;
 
-procedure TForm1.edtFilterChange(Sender: TObject);
+procedure TMainForm.edtFilterChange(Sender: TObject);
 begin
   timerFilterDebounce.Enabled := False;
   timerFilterDebounce.Enabled := True;
 end;
 
-procedure TForm1.timerFilterDebounceTimer(Sender: TObject);
+procedure TMainForm.timerFilterDebounceTimer(Sender: TObject);
 begin
   timerFilterDebounce.Enabled := False;
   RefreshFileTree;
 end;
 
-procedure TForm1.menuOptionsClick(Sender: TObject);
+procedure TMainForm.menuOptionsClick(Sender: TObject);
 var
   options: TOptionsForm;
 begin
@@ -270,15 +301,15 @@ begin
   end;
 end;
 
-procedure TForm1.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
-  if eagleOptions.closeToTray then begin;
+  if eagleOptions.closeToTray then begin
     CanClose := False;
     Visible := False;
   end;
 end;
 
-procedure TForm1.FormWindowStateChange(Sender: TObject);
+procedure TMainForm.FormWindowStateChange(Sender: TObject);
 begin
   if (WindowState = wsMinimized) and eagleOptions.minimizeToTray then begin
     WindowState := wsNormal;
@@ -286,24 +317,24 @@ begin
   end;
 end;
 
-procedure TForm1.traySearchClick(Sender: TObject);
+procedure TMainForm.traySearchClick(Sender: TObject);
 begin
   Self.Visible := True;
 end;
 
-procedure TForm1.trayQuitClick(Sender: TObject);
+procedure TMainForm.trayQuitClick(Sender: TObject);
 begin
   Application.Terminate;
 end;
 
 // TEST
-procedure TForm1.FormClick(Sender: TObject);
+procedure TMainForm.FormClick(Sender: TObject);
 begin
   Memo1.Lines.Add(benchStamp.GetAllTimestamps);
 end;
 
 {$REGION 'FileTree context menu'}
-function TForm1.LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): Boolean;
+function TMainForm.LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): boolean;
 var
   selectedNode: PVirtualNode;
   nodeIndex: integer;
@@ -325,7 +356,7 @@ begin
   Result := True;
 end;
 
-procedure TForm1.mnuOpenFolderClick(Sender: TObject);
+procedure TMainForm.mnuOpenFolderClick(Sender: TObject);
 var
   folderPath, folderUrl: string;
   opened: boolean;
@@ -346,7 +377,7 @@ begin
     opened := OpenDocument(folderPath);
 end;
 
-procedure TForm1.mnuCopyNameClick(Sender: TObject);
+procedure TMainForm.mnuCopyNameClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
 begin
@@ -356,7 +387,7 @@ begin
   Clipboard.AsText := fileRecord.Name;
 end;
 
-procedure TForm1.mnuCopyPathAndNameClick(Sender: TObject);
+procedure TMainForm.mnuCopyPathAndNameClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
 begin
@@ -366,17 +397,17 @@ begin
   Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path) + fileRecord.Name;
 end;
 
-procedure TForm1.mnuCopyPathClick(Sender: TObject);
+procedure TMainForm.mnuCopyPathClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
 begin
   if not LoadFileRecordFromTree(fileRecord) then
     Exit;
 
-  Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path)
+  Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path);
 end;
 
-procedure TForm1.mnuOpenFileClick(Sender: TObject);
+procedure TMainForm.mnuOpenFileClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
   filePath: string;
@@ -398,12 +429,12 @@ begin
     OpenURL('file://' + EncodePathForFileURL(filePath));
 end;
 
-procedure TForm1.menuAboutClick(Sender: TObject);
+procedure TMainForm.menuAboutClick(Sender: TObject);
 begin
   OpenURL('https://github.com/DarkByte/Eagle/blob/main/README.md');
 end;
 
-procedure TForm1.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TMainForm.fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: integer);
 var
   clickedNode: PVirtualNode;
   fileRecord: TEagleFileRecord;
@@ -413,14 +444,18 @@ begin
 
   if (Button = mbLeft) and (ssDouble in Shift) then
     itemAction := eagleOptions.doubleClickAction
-  else if Button = mbMiddle then
-    itemAction := eagleOptions.middleClickAction
-  else if (Button = mbLeft) and (ssCtrl in Shift) then
-    itemAction := eagleOptions.ctrlClickAction
-  else if (Button = mbLeft) and (ssAlt in Shift) then
-    itemAction := eagleOptions.altClickAction
-  else if (Button = mbLeft) and (ssShift in Shift) then
-    itemAction := eagleOptions.shiftClickAction;
+  else
+    if Button = mbMiddle then
+      itemAction := eagleOptions.middleClickAction
+    else
+      if (Button = mbLeft) and (ssCtrl in Shift) then
+        itemAction := eagleOptions.ctrlClickAction
+      else
+        if (Button = mbLeft) and (ssAlt in Shift) then
+          itemAction := eagleOptions.altClickAction
+        else
+          if (Button = mbLeft) and (ssShift in Shift) then
+            itemAction := eagleOptions.shiftClickAction;
 
   if itemAction = iaIgnore then
     Exit;
@@ -444,15 +479,29 @@ begin
     iaCopyPathName: mnuCopyPathAndNameClick(Sender);
   end;
 end;
+
 {$ENDREGION}
 
 {$REGION 'FileTree'}
-procedure TForm1.RefreshFileTree;
+procedure TMainForm.RefreshFileTree;
 var
   filterText: string;
+  r, g, b: byte;
+  limit: integer;
 begin
+  Row1RGB := fileTree.colors.borderColor;
+  if eagleOptions.alternatingColors then begin
+    ColorToRGB(Row1RGB, r, g, b);
+    Row2RGB := RGB(r - 10, g - 10, b - 10);
+  end else
+    Row2RGB := Row1RGB;
+
+  limit := 0;
+  if eagleOptions.limitResults then
+    limit := eagleOptions.limitCount;
+
   filterText := Trim(edtFilter.Text);
-  FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchPath);
+  FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchPath, limit);
   if FSortColumn <> NoColumn then
     SortFileRecords(FFileRecords, integer(FSortColumn), FSortDirection = sdDescending);
   PopulateFileTree;
@@ -460,9 +509,7 @@ begin
   Memo1.Lines.Add('New records added: ' + IntToStr(Length(FFileRecords)));
 end;
 
-procedure TForm1.SetupFileTree;
-const
-  widths: array of integer = (250, 80, 120);
+procedure TMainForm.SetupFileTree;
 var
   Column: TVirtualTreeColumn;
 begin
@@ -470,27 +517,28 @@ begin
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Name';
-  Column.Width := fileTree.ClientWidth - SumArray(widths) - 16;
+  Column.Width := eagleOptions.colName;
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Path';
-  Column.Width := widths[0];
+  Column.Width := eagleOptions.colPath;
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Size';
-  Column.Width := widths[1];
+  Column.Width := eagleOptions.colSize;
 
   Column := fileTree.Header.Columns.Add;
   Column.Text := 'Date';
-  Column.Width := widths[2];
+  Column.Width := eagleOptions.colDate;
 
   fileTree.Header.MainColumn := 0;
   fileTree.TreeOptions.SelectionOptions := fileTree.TreeOptions.SelectionOptions + [toFullRowSelect];
   fileTree.OnHeaderClick := @FileTreeHeaderClick;
   fileTree.OnGetText := @FileTreeGetText;
+  fileTree.OnBeforeCellPaint := @FileTreeBeforeCellPaint;
 end;
 
-procedure TForm1.FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
+procedure TMainForm.FileTreeHeaderClick(Sender: TVTHeader; HitInfo: TVTHeaderHitInfo);
 begin
   if HitInfo.Column = NoColumn then
     Exit;
@@ -512,7 +560,8 @@ begin
   PopulateFileTree;
 end;
 
-procedure TForm1.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType; var CellText: string);
+procedure TMainForm.FileTreeGetText(Sender: TBaseVirtualTree; Node: PVirtualNode; Column: TColumnIndex; TextType: TVSTTextType;
+  var CellText: string);
 var
   NodeIndex: integer;
 begin
@@ -528,20 +577,36 @@ begin
   case Column of
     0: CellText := FFileRecords[NodeIndex].Name;
     1: CellText := FFileRecords[NodeIndex].Path;
-    2:
-      if eagleOptions.prettySize then
+    2: if eagleOptions.prettySize then
         CellText := PrettySize(FFileRecords[NodeIndex].Size)
       else
         CellText := IntToStr(FFileRecords[NodeIndex].Size);
-    3:
-      if eagleOptions.showOnlyDate then
+    3: if eagleOptions.showOnlyDate then
         CellText := FormatDateTime('dd.mm.yyyy', FileDateToDateTime(FFileRecords[NodeIndex].Time))
       else
         CellText := FormatDateTime('dd.mm.yyyy hh:nn', FileDateToDateTime(FFileRecords[NodeIndex].Time));
   end;
 end;
 
-procedure TForm1.PopulateFileTree;
+procedure TMainForm.FileTreeBeforeCellPaint(Sender: TBaseVirtualTree; TargetCanvas: TCanvas; Node: PVirtualNode;
+  Column: TColumnIndex; CellPaintMode: TVTCellPaintMode; CellRect: TRect; var ContentRect: TRect);
+var
+  NodeIndex: integer;
+  RowColor: TColor;
+begin
+  NodeIndex := Sender.AbsoluteIndex(Node);
+
+  if (NodeIndex mod 2) = 0 then
+    RowColor := Row1RGB
+  else
+    RowColor := Row2RGB;
+
+  TargetCanvas.Brush.Color := RowColor;
+  TargetCanvas.FillRect(CellRect);
+  ContentRect := CellRect;
+end;
+
+procedure TMainForm.PopulateFileTree;
 begin
   fileTree.Clear;
   fileTree.RootNodeCount := Length(FFileRecords);
@@ -550,7 +615,7 @@ end;
 {$ENDREGION}
 
 {$REGION TWatchThread delegate methods}
-procedure TForm1.HandleInitialScan(const AFiles: array of TSearchRec);
+procedure TMainForm.HandleInitialScan(const AFiles: array of TSearchRec);
 begin
   Memo1.Lines.Add(benchStamp.StampNow('Finished search...'));
   benchStamp.InsertTime('Finished watchThread');
@@ -568,7 +633,7 @@ begin
   Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
 end;
 
-procedure TForm1.HandleCreate(const APath: string);
+procedure TMainForm.HandleCreate(const APath: string);
 var
   sr: TSearchRec;
 begin
@@ -587,24 +652,24 @@ begin
   RefreshFileTree;
 end;
 
-procedure TForm1.HandleRename(const AOldPath, ANewPath: string);
+procedure TMainForm.HandleRename(const AOldPath, ANewPath: string);
 begin
   FEagleDB.RenamePath(AOldPath, ANewPath);
   RefreshFileTree;
 end;
 
-procedure TForm1.HandleDelete(const APath: string);
+procedure TMainForm.HandleDelete(const APath: string);
 begin
   FEagleDB.DeletePath(APath);
   RefreshFileTree;
 end;
 
-procedure TForm1.HandleLog(const AMessage: string);
+procedure TMainForm.HandleLog(const AMessage: string);
 begin
   Memo1.Lines.Add(AMessage);
 end;
 
-procedure TForm1.HandleScanProgress(const ACount: integer);
+procedure TMainForm.HandleScanProgress(const ACount: integer);
 begin
   Memo1.Lines.Add('[SCAN] ' + IntToStr(ACount) + ' files found so far...');
 end;
