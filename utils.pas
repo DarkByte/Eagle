@@ -157,16 +157,18 @@ begin
   eagleOptions.searchPath := True;
   eagleOptions.prettySize := True;
   eagleOptions.showOnlyDate := False;
-  eagleOptions.minimizeToTray := False;
-  eagleOptions.closeToTray := False;
-  eagleOptions.startMinimized := False;
-  eagleOptions.runOnStartup := False;
-  eagleOptions.allowIPC := False;
+
   eagleOptions.ctrlClickAction := iaIgnore;
   eagleOptions.altClickAction := iaIgnore;
   eagleOptions.shiftClickAction := iaIgnore;
   eagleOptions.doubleClickAction := iaIgnore;
   eagleOptions.middleClickAction := iaIgnore;
+
+  eagleOptions.minimizeToTray := False;
+  eagleOptions.closeToTray := False;
+  eagleOptions.startMinimized := False;
+  eagleOptions.runOnStartup := False;
+  eagleOptions.allowIPC := False;
 
   eagleOptions.colName := 200;
   eagleOptions.colPath := 250;
@@ -190,6 +192,9 @@ begin
     eagleOptions.searchPath   := ini.ReadBool('Search', 'SearchPath', True);
     eagleOptions.prettySize   := ini.ReadBool('Search', 'PrettySize', True);
     eagleOptions.showOnlyDate := ini.ReadBool('Search', 'ShowOnlyDate', False);
+    eagleOptions.alternatingColors := ini.ReadBool('Search', 'AlternatingRows', False);
+    eagleOptions.limitResults := ini.ReadBool('Search', 'LimitResults', False);
+    eagleOptions.limitCount := ini.ReadInteger('Search', 'LimitCount', 5000);
 
     eagleOptions.ctrlClickAction   := IntegerToItemAction(ini.ReadInteger('Search', 'CtrlClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.altClickAction    := IntegerToItemAction(ini.ReadInteger('Search', 'AltClickAction', Ord(iaIgnore)), iaIgnore);
@@ -239,6 +244,10 @@ begin
     ini.WriteBool('Search', 'SearchPath', eagleOptions.searchPath);
     ini.WriteBool('Search', 'PrettySize', eagleOptions.prettySize);
     ini.WriteBool('Search', 'ShowOnlyDate', eagleOptions.showOnlyDate);
+
+    ini.WriteBool('Search', 'AlternatingRows', eagleOptions.alternatingColors);
+    ini.WriteBool('Search', 'LimitResults', eagleOptions.limitResults);
+    ini.WriteInteger('Search', 'LimitCount', eagleOptions.limitCount);
 
     ini.WriteInteger('Search', 'CtrlClickAction', Ord(eagleOptions.ctrlClickAction));
     ini.WriteInteger('Search', 'AltClickAction', Ord(eagleOptions.altClickAction));
