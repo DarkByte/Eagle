@@ -8,7 +8,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
   Process, LCLIntf, ExtCtrls, Menus, Clipbrd,
   laz.VirtualTrees,
-  utils, formoptions, eagleipc,
+  utils, formoptions, eagleipc, BaseUnix,
   TimeCheck,
   WatchThread, EagleDB;
 
@@ -46,26 +46,31 @@ type
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
-    procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: integer);
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
-    procedure FormWindowStateChange(Sender: TObject);
-    procedure menuAboutClick(Sender: TObject);
-    procedure traySearchClick(Sender: TObject);
-    procedure trayQuitClick(Sender: TObject);
-    procedure mnuCopyPathAndNameClick(Sender: TObject);
-    procedure mnuCopyPathClick(Sender: TObject);
-    procedure mnuOpenFileClick(Sender: TObject);
     procedure timerFilterDebounceTimer(Sender: TObject);
     procedure timerIPCTimer(Sender: TObject);
 
-    // FileTree context menu
-    procedure mnuOpenFolderClick(Sender: TObject);
+    // Main menu
+    procedure menuAboutClick(Sender: TObject);
     procedure menuOptionsClick(Sender: TObject);
-    procedure mnuCopyNameClick(Sender: TObject);
 
-    procedure FormClick(Sender: TObject);
+    // Tray actions
+    procedure traySearchClick(Sender: TObject);
+    procedure trayQuitClick(Sender: TObject);
+
+    // FileTree actions
+    procedure fileTreeMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: integer);
+    procedure mnuCopyNameClick(Sender: TObject);
+    procedure mnuCopyPathClick(Sender: TObject);
+    procedure mnuCopyPathAndNameClick(Sender: TObject);
+    procedure mnuOpenFolderClick(Sender: TObject);
+    procedure mnuOpenFileClick(Sender: TObject);
+
+    // Form
     procedure FormCreate;
+    procedure FormClick(Sender: TObject);
+    procedure FormWindowStateChange(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormDestroy;
   private
     FWatchThread: TWatchThread;
@@ -105,6 +110,7 @@ type
     procedure SetupIPCServer;
     procedure StopIPCServer;
     procedure HandleIPCMessage(Sender: TObject; const AMessage: string);
+    procedure ApplyAfterOpenAction;
   public
 
   end;
@@ -356,27 +362,6 @@ begin
   Result := True;
 end;
 
-procedure TMainForm.mnuOpenFolderClick(Sender: TObject);
-var
-  folderPath, folderUrl: string;
-  opened: boolean;
-
-  fileRecord: TEagleFileRecord;
-begin
-  if not LoadFileRecordFromTree(fileRecord) then
-    Exit;
-
-  folderPath := fileRecord.Path;
-  if (folderPath = '') or not DirectoryExists(folderPath) then
-    Exit;
-
-  folderUrl := 'file://' + EncodePathForFileURL(folderPath);
-
-  opened := OpenURL(folderUrl);
-  if not opened then
-    opened := OpenDocument(folderPath);
-end;
-
 procedure TMainForm.mnuCopyNameClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
@@ -407,6 +392,30 @@ begin
   Clipboard.AsText := IncludeTrailingPathDelimiter(fileRecord.Path);
 end;
 
+procedure TMainForm.mnuOpenFolderClick(Sender: TObject);
+var
+  folderPath, folderUrl: string;
+  opened: boolean;
+
+  fileRecord: TEagleFileRecord;
+begin
+  if not LoadFileRecordFromTree(fileRecord) then
+    Exit;
+
+  folderPath := fileRecord.Path;
+  if (folderPath = '') or not DirectoryExists(folderPath) then
+    Exit;
+
+  folderUrl := 'file://' + EncodePathForFileURL(folderPath);
+
+  opened := OpenURL(folderUrl);
+  if not opened then
+    opened := OpenDocument(folderPath);
+
+  if opened then
+    ApplyAfterOpenAction;
+end;
+
 procedure TMainForm.mnuOpenFileClick(Sender: TObject);
 var
   fileRecord: TEagleFileRecord;
@@ -420,13 +429,18 @@ begin
   if (filePath = '') or not FileExists(filePath) then
     Exit;
 
-  if Pos('''', filePath) > 1 then
-    opened := OpenDocument(EncodePathForFileURL(filePath))
-  else
-    opened := OpenDocument(filePath);
-
+  opened := OpenDocument(filePath);
   if not opened then
     OpenURL('file://' + EncodePathForFileURL(filePath));
+
+  if opened then
+    ApplyAfterOpenAction;
+end;
+
+procedure TMainForm.ApplyAfterOpenAction;
+begin
+  if eagleOptions.afterOpenAction = oaMinimize then
+    WindowState := wsMinimized;
 end;
 
 procedure TMainForm.menuAboutClick(Sender: TObject);

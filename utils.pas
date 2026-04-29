@@ -17,6 +17,11 @@ type
     iaCopyPathName = 5
     );
 
+  TOpenAction = (
+    oaNothing = 0,
+    oaMinimize = 1
+    );
+
   TEagleOptions = record
     paths: TStringList;
     watchRecursively: boolean;
@@ -38,6 +43,7 @@ type
     shiftClickAction: TItemAction;
     doubleClickAction: TItemAction;
     middleClickAction: TItemAction;
+    afterOpenAction: TOpenAction;
 
     colName: integer;
     colPath: integer;
@@ -89,6 +95,14 @@ function IntegerToItemAction(const Value: integer; const defaultValue: TItemActi
 begin
   if (Value >= Ord(Low(TItemAction))) and (Value <= Ord(High(TItemAction))) then
     Result := TItemAction(Value)
+  else
+    Result := defaultValue;
+end;
+
+function IntegerToOpenAction(const Value: integer; const defaultValue: TOpenAction): TOpenAction;
+begin
+  if (Value >= Ord(Low(TOpenAction))) and (Value <= Ord(High(TOpenAction))) then
+    Result := TOpenAction(Value)
   else
     Result := defaultValue;
 end;
@@ -163,6 +177,7 @@ begin
   eagleOptions.shiftClickAction := iaIgnore;
   eagleOptions.doubleClickAction := iaIgnore;
   eagleOptions.middleClickAction := iaIgnore;
+  eagleOptions.afterOpenAction := oaNothing;
 
   eagleOptions.minimizeToTray := False;
   eagleOptions.closeToTray := False;
@@ -201,6 +216,7 @@ begin
     eagleOptions.shiftClickAction  := IntegerToItemAction(ini.ReadInteger('Search', 'ShiftClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.doubleClickAction := IntegerToItemAction(ini.ReadInteger('Search', 'DoubleClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Search', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
+    eagleOptions.afterOpenAction := IntegerToOpenAction(ini.ReadInteger('Search', 'AfterOpenAction', Ord(oaNothing)), oaNothing);
 
     eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
     Count := ini.ReadInteger('Paths', 'Count', 0);
@@ -254,6 +270,7 @@ begin
     ini.WriteInteger('Search', 'ShiftClickAction', Ord(eagleOptions.shiftClickAction));
     ini.WriteInteger('Search', 'DoubleClickAction', Ord(eagleOptions.doubleClickAction));
     ini.WriteInteger('Search', 'MiddleClickAction', Ord(eagleOptions.middleClickAction));
+    ini.WriteInteger('Search', 'AfterOpenAction', Ord(eagleOptions.afterOpenAction));
 
     ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);

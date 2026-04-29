@@ -10,9 +10,8 @@ uses
   SysUtils,
   TimeCheck,
   main,
-  EagleDB,
   utils,
-  formOptions, eagleipc { you can add units after this };
+  eagleipc { you can add units after this };
 
   {$R *.res}
 

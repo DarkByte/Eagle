@@ -19,6 +19,7 @@ type
     cbCtrlClick: TComboBox;
     cbAltClick: TComboBox;
     cbCloseTray: TCheckBox;
+    cbAfterOpen: TComboBox;
     cbShiftClick: TComboBox;
     cbDoubleClick: TComboBox;
     cbMiddleClick: TComboBox;
@@ -42,6 +43,7 @@ type
     Label5: TLabel;
     Label6: TLabel;
     Label7: TLabel;
+    Label8: TLabel;
     pathListBox: TListBox;
     pages: TPageControl;
     tabLocations: TTabSheet;
@@ -107,6 +109,7 @@ begin
   cbShiftClick.ItemIndex  := Ord(eagleOptions.shiftClickAction);
   cbDoubleClick.ItemIndex := Ord(eagleOptions.doubleClickAction);
   cbMiddleClick.ItemIndex := Ord(eagleOptions.middleClickAction);
+  cbAfterOpen.ItemIndex   := Ord(eagleOptions.afterOpenAction);
 
   pathListBox.Items := eagleOptions.paths;
 
@@ -141,6 +144,7 @@ begin
   eagleOptions.shiftClickAction  := TItemAction(cbShiftClick.ItemIndex);
   eagleOptions.doubleClickAction := TItemAction(cbDoubleClick.ItemIndex);
   eagleOptions.middleClickAction := TItemAction(cbMiddleClick.ItemIndex);
+  eagleOptions.afterOpenAction   := TOpenAction(cbAfterOpen.ItemIndex);
 
   eagleOptions.paths.Text := pathListBox.Items.Text;
 
