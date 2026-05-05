@@ -25,13 +25,13 @@ object OptionsForm: TOptionsForm
     Height = 299
     Top = 8
     Width = 575
-    ActivePage = tabAdvanced
+    ActivePage = tabSearchResults
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 3
+    TabIndex = 1
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
@@ -274,6 +274,7 @@ object OptionsForm: TOptionsForm
         Width = 117
         Caption = 'Limit results to:'
         TabOrder = 8
+        OnChange = cbLimitResultsChange
       end
       object edtLimitCount: TEdit
         Left = 135

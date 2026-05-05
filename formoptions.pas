@@ -176,7 +176,6 @@ end;
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
   pages.ActivePageIndex := 0;
-  cbLimitResults.OnChange := @cbLimitResultsChange;
 end;
 
 procedure TOptionsForm.btnPathRemoveClick(Sender: TObject);
