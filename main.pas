@@ -46,6 +46,7 @@ type
 
     procedure btnEagleClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
+    procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure timerFilterDebounceTimer(Sender: TObject);
     procedure timerIPCTimer(Sender: TObject);
 
@@ -279,6 +280,14 @@ procedure TMainForm.edtFilterChange(Sender: TObject);
 begin
   timerFilterDebounce.Enabled := False;
   timerFilterDebounce.Enabled := True;
+end;
+
+procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
+begin
+  case key of
+    #27: if eagleOptions.escToMinimize
+           then Application.Minimize;
+  end;
 end;
 
 procedure TMainForm.timerFilterDebounceTimer(Sender: TObject);

@@ -25,17 +25,17 @@ object OptionsForm: TOptionsForm
     Height = 299
     Top = 8
     Width = 575
-    ActivePage = tabSearchResults
+    ActivePage = tabAdvanced
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 1
+    TabIndex = 3
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object pathListBox: TListBox
         Left = 16
@@ -101,7 +101,7 @@ object OptionsForm: TOptionsForm
     end
     object tabSearchResults: TTabSheet
       Caption = 'Search results'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object cbPrettySize: TCheckBox
         Left = 16
@@ -321,12 +321,12 @@ object OptionsForm: TOptionsForm
     end
     object tabAdvanced: TTabSheet
       Caption = 'Advanced'
-      ClientHeight = 263
+      ClientHeight = 266
       ClientWidth = 565
       object cbStartMinimized: TCheckBox
         Left = 16
         Height = 23
-        Top = 80
+        Top = 112
         Width = 118
         Caption = 'Start minimized'
         TabOrder = 0
@@ -334,7 +334,7 @@ object OptionsForm: TOptionsForm
       object cbRunStartup: TCheckBox
         Left = 16
         Height = 23
-        Top = 112
+        Top = 144
         Width = 118
         Caption = 'Run on startup'
         TabOrder = 1
@@ -342,7 +342,7 @@ object OptionsForm: TOptionsForm
       object cbMinimizeTray: TCheckBox
         Left = 16
         Height = 23
-        Top = 16
+        Top = 48
         Width = 122
         Caption = 'Minimize to tray'
         TabOrder = 2
@@ -350,7 +350,7 @@ object OptionsForm: TOptionsForm
       object cbCloseTray: TCheckBox
         Left = 16
         Height = 23
-        Top = 48
+        Top = 80
         Width = 101
         Caption = 'Close to tray'
         TabOrder = 3
@@ -359,7 +359,7 @@ object OptionsForm: TOptionsForm
         Left = 16
         Height = 23
         Hint = 'Inter-process communication: other programs can use Eagle to search for files.'
-        Top = 144
+        Top = 176
         Width = 82
         Caption = 'Allow IPC'
         ParentShowHint = False
@@ -372,6 +372,14 @@ object OptionsForm: TOptionsForm
         Top = 232
         Width = 417
         Caption = 'You can set a system-wide hotkey from Keyboard / Custom Shortcuts.'
+      end
+      object cbEscToMinimize: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 16
+        Width = 117
+        Caption = 'Esc to minimize'
+        TabOrder = 5
       end
     end
   end

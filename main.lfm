@@ -8,12 +8,14 @@ object MainForm: TMainForm
   ClientWidth = 943
   Constraints.MinHeight = 300
   Constraints.MinWidth = 800
+  KeyPreview = True
   Menu = MainMenu1
   LCLVersion = '4.6.0.0'
   OnClick = FormClick
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnKeyPress = FormKeyPress
   OnWindowStateChange = FormWindowStateChange
   object Memo1: TMemo
     Left = 680
@@ -24,7 +26,8 @@ object MainForm: TMainForm
     Font.Height = -12
     Font.Name = 'Sans'
     ParentFont = False
-    TabOrder = 0
+    TabOrder = 2
+    TabStop = False
   end
   object edtFilter: TEdit
     Left = 0
@@ -32,7 +35,7 @@ object MainForm: TMainForm
     Top = 0
     Width = 445
     Anchors = [akTop, akLeft, akRight]
-    TabOrder = 1
+    TabOrder = 0
     OnChange = edtFilterChange
   end
   object fileTree: TLazVirtualStringTree
@@ -48,7 +51,7 @@ object MainForm: TMainForm
     Header.MainColumn = -1
     Header.Options = [hoColumnResize, hoDblClickResize, hoDrag, hoShowSortGlyphs, hoVisible, hoAutoSpring]
     PopupMenu = fileTreeMenu
-    TabOrder = 2
+    TabOrder = 1
     TreeOptions.AutoOptions = [toAutoSort, toAutoTristateTracking, toAutoDeleteMovedNodes, toAutoChangeScale]
     TreeOptions.MiscOptions = [toFullRepaintOnResize, toGridExtensions, toInitOnSave, toToggleOnDblClick, toWheelPanning, toEditOnClick]
     TreeOptions.PaintOptions = [toShowButtons, toShowDropmark, toThemeAware, toUseBlendedImages]

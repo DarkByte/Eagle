@@ -20,6 +20,7 @@ type
     cbAltClick: TComboBox;
     cbCloseTray: TCheckBox;
     cbAfterOpen: TComboBox;
+    cbEscToMinimize: TCheckBox;
     cbShiftClick: TComboBox;
     cbDoubleClick: TComboBox;
     cbMiddleClick: TComboBox;
@@ -113,6 +114,7 @@ begin
 
   pathListBox.Items := eagleOptions.paths;
 
+  cbEscToMinimize.Checked := eagleOptions.escToMinimize;
   cbMinimizeTray.Checked := eagleOptions.minimizeToTray;
   cbCloseTray.Checked := eagleOptions.closeToTray;
   cbStartMinimized.Checked := eagleOptions.startMinimized;
@@ -148,6 +150,7 @@ begin
 
   eagleOptions.paths.Text := pathListBox.Items.Text;
 
+  eagleOptions.escToMinimize := cbEscToMinimize.Checked;
   eagleOptions.minimizeToTray := cbMinimizeTray.Checked;
   eagleOptions.closeToTray := cbCloseTray.Checked;
   eagleOptions.startMinimized := cbStartMinimized.Checked;

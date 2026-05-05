@@ -33,6 +33,7 @@ type
     limitCount: integer;
 
     minimizeToTray: boolean;
+    escToMinimize: boolean;
     closeToTray: boolean;
     startMinimized: boolean;
     runOnStartup: boolean;
@@ -180,6 +181,7 @@ begin
   eagleOptions.afterOpenAction := oaNothing;
 
   eagleOptions.minimizeToTray := False;
+  eagleOptions.escToMinimize := False;
   eagleOptions.closeToTray := False;
   eagleOptions.startMinimized := False;
   eagleOptions.runOnStartup := False;
@@ -228,6 +230,7 @@ begin
     end;
 
     eagleOptions.minimizeToTray := ini.ReadBool('Advanced', 'MinimizeToTray', False);
+    eagleOptions.escToMinimize := ini.ReadBool('Advanced', 'EscToMinimize', False);
     eagleOptions.closeToTray := ini.ReadBool('Advanced', 'CloseToTray', False);
     eagleOptions.startMinimized := ini.ReadBool('Advanced', 'StartMinimized', False);
     eagleOptions.runOnStartup := ini.ReadBool('Advanced', 'RunOnStartup', False);
@@ -282,6 +285,7 @@ begin
         ini.DeleteKey('Paths', 'Path' + IntToStr(i + 1));
 
     ini.WriteBool('Advanced', 'MinimizeToTray', eagleOptions.minimizeToTray);
+    ini.WriteBool('Advanced', 'EscToMinimize', eagleOptions.escToMinimize);
     ini.WriteBool('Advanced', 'CloseToTray', eagleOptions.closeToTray);
     ini.WriteBool('Advanced', 'StartMinimized', eagleOptions.startMinimized);
     ini.WriteBool('Advanced', 'RunOnStartup', eagleOptions.runOnStartup);
