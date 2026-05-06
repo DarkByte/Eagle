@@ -315,6 +315,14 @@ object OptionsForm: TOptionsForm
         Style = csDropDownList
         TabOrder = 11
       end
+      object cbEscToMinimize: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 176
+        Width = 108
+        Caption = 'Esc to dismiss'
+        TabOrder = 12
+      end
     end
     object tabSearch: TTabSheet
       Caption = 'Search'
@@ -327,7 +335,7 @@ object OptionsForm: TOptionsForm
       object cbStartMinimized: TCheckBox
         Left = 16
         Height = 23
-        Top = 112
+        Top = 80
         Width = 118
         Caption = 'Start minimized'
         TabOrder = 0
@@ -335,7 +343,7 @@ object OptionsForm: TOptionsForm
       object cbRunStartup: TCheckBox
         Left = 16
         Height = 23
-        Top = 144
+        Top = 112
         Width = 118
         Caption = 'Run on startup'
         TabOrder = 1
@@ -343,7 +351,7 @@ object OptionsForm: TOptionsForm
       object cbMinimizeTray: TCheckBox
         Left = 16
         Height = 23
-        Top = 48
+        Top = 16
         Width = 122
         Caption = 'Minimize to tray'
         TabOrder = 2
@@ -351,7 +359,7 @@ object OptionsForm: TOptionsForm
       object cbCloseTray: TCheckBox
         Left = 16
         Height = 23
-        Top = 80
+        Top = 48
         Width = 101
         Caption = 'Close to tray'
         TabOrder = 3
@@ -360,7 +368,7 @@ object OptionsForm: TOptionsForm
         Left = 16
         Height = 23
         Hint = 'Inter-process communication: other programs can use Eagle to search for files.'
-        Top = 176
+        Top = 144
         Width = 82
         Caption = 'Allow IPC'
         ParentShowHint = False
@@ -373,14 +381,6 @@ object OptionsForm: TOptionsForm
         Top = 232
         Width = 417
         Caption = 'You can set a system-wide hotkey from Keyboard / Custom Shortcuts.'
-      end
-      object cbEscToMinimize: TCheckBox
-        Left = 16
-        Height = 23
-        Top = 16
-        Width = 117
-        Caption = 'Esc to minimize'
-        TabOrder = 5
       end
     end
   end

@@ -84,6 +84,10 @@ type
 
     Row1RGB, Row2RGB: TColor;
 
+    //SkipQuery: Boolean;
+
+    procedure RestoreSearchForm;
+
     function LoadFileRecordFromTree(out fileRecord: TEagleFileRecord): boolean;
 
     procedure HandleLog(const AMessage: string);
@@ -248,11 +252,11 @@ begin
     if WindowState = wsMinimized then
       WindowState := wsNormal;
 
-    Visible := True;
+    RestoreSearchForm;
     BringToFront;
     SetFocus;
 
-    Memo1.Lines.Add('ignore new instance');
+    Memo1.Lines.Add('ping from another instance');
   end;
 end;
 {$ENDREGION}
@@ -278,6 +282,9 @@ end;
 
 procedure TMainForm.edtFilterChange(Sender: TObject);
 begin
+  if not Visible then
+    Exit;
+
   timerFilterDebounce.Enabled := False;
   timerFilterDebounce.Enabled := True;
 end;
@@ -285,8 +292,8 @@ end;
 procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   case key of
-    #27: if eagleOptions.escToMinimize
-           then Application.Minimize;
+    #27: if eagleOptions.escToMinimize then
+      Application.Minimize;
   end;
 end;
 
@@ -334,12 +341,19 @@ end;
 
 procedure TMainForm.traySearchClick(Sender: TObject);
 begin
-  Self.Visible := True;
+  RestoreSearchForm;
 end;
 
 procedure TMainForm.trayQuitClick(Sender: TObject);
 begin
   Application.Terminate;
+end;
+
+procedure TMainForm.RestoreSearchForm;
+begin
+  edtFilter.Text := ''; // must be first
+  Visible := True;
+  edtFilter.SetFocus;
 end;
 
 // TEST
