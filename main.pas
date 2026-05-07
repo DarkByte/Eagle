@@ -81,6 +81,12 @@ type
     FFileRecords: TEagleFileRecords;
     FSortColumn: TColumnIndex;
     FSortDirection: TSortDirection;
+    FInitialScanImportActive: boolean;
+    FInitialScanImportedCount: integer;
+
+    {$IFDEF EAGLE_MEM_PROFILE}
+    FInitialScanBeforeSync: THeapStatus;
+    {$ENDIF}
 
     Row1RGB, Row2RGB: TColor;
 
@@ -94,7 +100,7 @@ type
     procedure HandleCreate(const APath: string);
     procedure HandleDelete(const APath: string);
     procedure HandleRename(const AOldPath, ANewPath: string);
-    procedure HandleInitialScan(const AFiles: array of TSearchRec);
+    procedure HandleInitialScan(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean);
     procedure HandleScanProgress(const ACount: integer);
 
     procedure SetupWatchThread;
@@ -127,12 +133,58 @@ implementation
 
 {$R *.lfm}
 
+{$IFDEF EAGLE_MEM_PROFILE}
+function ReadProcStatusValue(const AKey: string): string;
+var
+  statusLines: TStringList;
+  i: integer;
+  prefix: string;
+begin
+  Result := 'n/a';
+  if not FileExists('/proc/self/status') then
+    Exit;
+
+  prefix := AKey + ':';
+  statusLines := TStringList.Create;
+  try
+    statusLines.LoadFromFile('/proc/self/status');
+    for i := 0 to statusLines.Count - 1 do begin
+      if Pos(prefix, statusLines[i]) = 1 then begin
+        Result := Trim(Copy(statusLines[i], Length(prefix) + 1, MaxInt));
+        Exit;
+      end;
+    end;
+  finally
+    statusLines.Free;
+  end;
+end;
+
+procedure LogProcessMemorySnapshot(AMemo: TMemo; const ATag: string);
+begin
+  if not Assigned(AMemo) then
+    Exit;
+
+  AMemo.Lines.Add(Format(
+    '[PROC] %s VmRSS=%s VmHWM=%s VmData=%s RssAnon=%s RssFile=%s RssShmem=%s',
+    [ATag,
+     ReadProcStatusValue('VmRSS'),
+     ReadProcStatusValue('VmHWM'),
+     ReadProcStatusValue('VmData'),
+     ReadProcStatusValue('RssAnon'),
+     ReadProcStatusValue('RssFile'),
+     ReadProcStatusValue('RssShmem')]
+    ));
+end;
+{$ENDIF}
+
 { TMainForm }
 
 procedure TMainForm.FormCreate;
 begin
   FSortColumn := NoColumn;
   FSortDirection := sdAscending;
+  FInitialScanImportActive := False;
+  FInitialScanImportedCount := 0;
 
   SetupIPCServer;
 
@@ -652,22 +704,94 @@ end;
 {$ENDREGION}
 
 {$REGION TWatchThread delegate methods}
-procedure TMainForm.HandleInitialScan(const AFiles: array of TSearchRec);
+procedure TMainForm.HandleInitialScan(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean);
+{$IFDEF EAGLE_MEM_PROFILE}
+var
+  afterSync, afterRefresh: THeapStatus;
+{$ENDIF}
 begin
+  try
+    if (ACount > 0) and (not FInitialScanImportActive) then begin
+      FInitialScanImportActive := True;
+      FInitialScanImportedCount := 0;
+
+      {$IFDEF EAGLE_MEM_PROFILE}
+      FInitialScanBeforeSync := GetHeapStatus;
+      Memo1.Lines.Add(Format('[MEM] before SyncFiles allocated=%d free=%d addr=%d',
+        [FInitialScanBeforeSync.TotalAllocated, FInitialScanBeforeSync.TotalFree, FInitialScanBeforeSync.TotalAddrSpace]));
+      LogProcessMemorySnapshot(Memo1, 'before SyncFiles');
+      {$ENDIF}
+
+      Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
+      benchStamp.InsertTime('Updating DB');
+      FEagleDB.BeginSyncFiles;
+    end;
+
+    if ACount > 0 then begin
+      FEagleDB.ImportFilesBatch(AFiles, ACount);
+      Inc(FInitialScanImportedCount, ACount);
+      Exit;
+    end;
+
+    if not AIsFinal then
+      Exit;
+
+    if not FInitialScanImportActive then begin
+      FInitialScanImportActive := True;
+      FInitialScanImportedCount := 0;
+
+      {$IFDEF EAGLE_MEM_PROFILE}
+      FInitialScanBeforeSync := GetHeapStatus;
+      Memo1.Lines.Add(Format('[MEM] before SyncFiles allocated=%d free=%d addr=%d',
+        [FInitialScanBeforeSync.TotalAllocated, FInitialScanBeforeSync.TotalFree, FInitialScanBeforeSync.TotalAddrSpace]));
+      LogProcessMemorySnapshot(Memo1, 'before SyncFiles');
+      {$ENDIF}
+
+      Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
+      benchStamp.InsertTime('Updating DB');
+      FEagleDB.BeginSyncFiles;
+    end;
+
+    FEagleDB.EndSyncFiles;
+    FInitialScanImportActive := False;
+  except
+    if FInitialScanImportActive then begin
+      FEagleDB.CancelSyncFiles;
+      FInitialScanImportActive := False;
+      FInitialScanImportedCount := 0;
+    end;
+
+    raise;
+  end;
+
   Memo1.Lines.Add(benchStamp.StampNow('Finished search...'));
   benchStamp.InsertTime('Finished watchThread');
+  Memo1.Lines.Add('Found ' + IntToStr(FInitialScanImportedCount) + ' files!');
 
-  Memo1.Lines.Add('Found ' + IntToStr(Length(AFiles)) + ' files!');
-
-  Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
-  benchStamp.InsertTime('Updating DB');
-  FEagleDB.SyncFiles(AFiles);
   benchStamp.InsertTime('Updated DB');
   Memo1.Lines.Add(benchStamp.StampNow('Saved to DB!'));
 
+  {$IFDEF EAGLE_MEM_PROFILE}
+  afterSync := GetHeapStatus;
+  Memo1.Lines.Add(Format('[MEM] after SyncFiles allocated=%d free=%d addr=%d delta_alloc=%d',
+    [afterSync.TotalAllocated, afterSync.TotalFree, afterSync.TotalAddrSpace,
+     Int64(afterSync.TotalAllocated) - Int64(FInitialScanBeforeSync.TotalAllocated)]));
+  LogProcessMemorySnapshot(Memo1, 'after SyncFiles');
+  {$ENDIF}
+
   RefreshFileTree;
 
-  Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(Length(AFiles)) + ' files');
+  {$IFDEF EAGLE_MEM_PROFILE}
+  afterRefresh := GetHeapStatus;
+  Memo1.Lines.Add(Format('[MEM] after RefreshFileTree allocated=%d free=%d addr=%d delta_from_sync=%d delta_total=%d',
+    [afterRefresh.TotalAllocated, afterRefresh.TotalFree, afterRefresh.TotalAddrSpace,
+     Int64(afterRefresh.TotalAllocated) - Int64(afterSync.TotalAllocated),
+     Int64(afterRefresh.TotalAllocated) - Int64(FInitialScanBeforeSync.TotalAllocated)]));
+  LogProcessMemorySnapshot(Memo1, 'after RefreshFileTree');
+  {$ENDIF}
+
+  Memo1.Lines.Add('[DB_POPULATED] ' + IntToStr(FInitialScanImportedCount) + ' files');
+  FInitialScanImportedCount := 0;
 end;
 
 procedure TMainForm.HandleCreate(const APath: string);

@@ -6,7 +6,8 @@ interface
 
 uses
   utils,
-  Classes, SysUtils, BaseUnix, Generics.Collections;
+  Classes, SysUtils, BaseUnix, Generics.Collections,
+  EagleDB;
 
 const
   IN_MODIFY     = $00000002;
@@ -22,6 +23,7 @@ const
   SHOULD_CONTINUE = 1;
   SHOULD_BREAK    = 2;
   SHOULD_PROCESS  = 3;
+  INITIAL_SCAN_BATCH_SIZE = 4096;
 
   PENDING_MOVE_TIMEOUT_MS = 500;
 
@@ -36,7 +38,7 @@ type
   TWatchEventHandler = procedure(const APath: string) of object;
   TWatchRenameEventHandler = procedure(const AOldPath, ANewPath: string) of object;
   TWatchLogHandler = procedure(const AMessage: string) of object;
-  TWatchInitialScanHandler = procedure(const AFiles: array of TSearchRec) of object;
+  TWatchInitialScanHandler = procedure(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean) of object;
   TWatchScanProgressHandler = procedure(const ACount: integer) of object;
 
   pinotify_event = ^inotify_event;
@@ -55,9 +57,12 @@ type
     eventStreamHandle: cint;
 
     FPaths: array of string;
-    FFoundFiles: array of TSearchRec;
+    FFoundFiles: TEagleImportFileRecords;
     FFoundFilesCount: integer;
-    FPendingInitialScanFiles: array of TSearchRec;
+    FFoundFilesTotalCount: integer;
+    FPendingInitialScanFiles: TEagleImportFileRecords;
+    FPendingInitialScanCount: integer;
+    FPendingInitialScanIsFinal: boolean;
     FWatchedFolders: specialize TDictionary<cint, string>;
     FWatchedFolderPaths: specialize TDictionary<string, cint>;
     FPendingMoves: specialize TDictionary<cuint32, TPendingMove>;
@@ -81,7 +86,7 @@ type
 
     function NormalizePathKey(const APath: string): string;
     function AddWatchDir(const dirPath: string): boolean;
-    procedure AddFileToList(fileEntry: TSearchRec; childPath: String);
+    procedure AddFileToList(const AFullPath: string; const ASize: int64; const ATime: longint);
     procedure AddWatchRecursive(fd: cint; const rootPath: string);
 
     function GetWatchPath(wd: cint): string;
@@ -105,8 +110,9 @@ type
     procedure QueueCreate(const APath: string);
     procedure QueueDelete(const APath: string);
     procedure QueueRename(const AOldPath, ANewPath: string);
-    procedure QueueInitialScan(const AFiles: array of TSearchRec);
-    procedure AppendFoundFile(const AFile: TSearchRec);
+    procedure QueueInitialScan(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean);
+    procedure AppendFoundFile(const AFile: TEagleImportFileRecord);
+    procedure FlushInitialScanBatch;
 
     function GetEventFileName(event: pinotify_event): string;
 
@@ -266,7 +272,7 @@ end;
 procedure TWatchThread.DispatchInitialScan;
 begin
   if Assigned(FOnInitialScan) then
-    FOnInitialScan(FPendingInitialScanFiles);
+    FOnInitialScan(FPendingInitialScanFiles, FPendingInitialScanCount, FPendingInitialScanIsFinal);
 end;
 
 procedure TWatchThread.DispatchScanProgress;
@@ -277,30 +283,35 @@ end;
 
 procedure TWatchThread.QueueScanProgressIfDue;
 begin
-  if (FFoundFilesCount and $7FFF) = 0 then begin
+  if (FFoundFilesTotalCount and $7FFF) = 0 then begin
     if (GetTickCount64 - FLastProgressTime) >= 5000 then begin
       FLastProgressTime := GetTickCount64;
-      FPendingScanProgressCount := FFoundFilesCount;
+      FPendingScanProgressCount := FFoundFilesTotalCount;
       Synchronize(@DispatchScanProgress);
     end;
   end;
 end;
 
-procedure TWatchThread.AppendFoundFile(const AFile: TSearchRec);
-var
-  newCapacity: integer;
+procedure TWatchThread.AppendFoundFile(const AFile: TEagleImportFileRecord);
 begin
-  if FFoundFilesCount >= Length(FFoundFiles) then begin
-    if Length(FFoundFiles) = 0 then
-      newCapacity := 1024
-    else
-      newCapacity := Length(FFoundFiles) * 2;
+  if Length(FFoundFiles) = 0 then
+    SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
 
-    SetLength(FFoundFiles, newCapacity);
-  end;
+  if FFoundFilesCount >= Length(FFoundFiles) then
+    FlushInitialScanBatch;
 
   FFoundFiles[FFoundFilesCount] := AFile;
   Inc(FFoundFilesCount);
+  Inc(FFoundFilesTotalCount);
+end;
+
+procedure TWatchThread.FlushInitialScanBatch;
+begin
+  if FFoundFilesCount = 0 then
+    Exit;
+
+  QueueInitialScan(FFoundFiles, FFoundFilesCount, False);
+  FFoundFilesCount := 0;
 end;
 
 function TWatchThread.NormalizePathKey(const APath: string): string;
@@ -339,9 +350,13 @@ begin
 end;
 
 // notify main thread of progress - will remove after testing
-procedure TWatchThread.AddFileToList(fileEntry: TSearchRec; childPath: String);
+procedure TWatchThread.AddFileToList(const AFullPath: string; const ASize: int64; const ATime: longint);
+var
+  fileEntry: TEagleImportFileRecord;
 begin
-  fileEntry.Name := childPath;
+  fileEntry.FullPath := AFullPath;
+  fileEntry.Size := ASize;
+  fileEntry.Time := ATime;
   AppendFoundFile(fileEntry);
   QueueScanProgressIfDue;
 end;
@@ -366,7 +381,7 @@ begin
         Continue;
       end;
 
-      AddFileToList(sr, childPath);
+      AddFileToList(childPath, sr.Size, sr.Time);
     until FindNext(sr) <> 0;
   finally
     FindClose(sr);
@@ -479,15 +494,17 @@ begin
     FWatchedFolderPaths.AddOrSetValue(NormalizePathKey(FWatchedFolders[watchHandle]), watchHandle);
 end;
 
-procedure TWatchThread.QueueInitialScan(const AFiles: array of TSearchRec);
-var
-  i: integer;
+procedure TWatchThread.QueueInitialScan(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean);
 begin
-  SetLength(FPendingInitialScanFiles, Length(AFiles));
-  for i := Low(AFiles) to High(AFiles) do
-    FPendingInitialScanFiles[i] := AFiles[i];
+  FPendingInitialScanFiles := AFiles;
+  FPendingInitialScanCount := ACount;
+  FPendingInitialScanIsFinal := AIsFinal;
 
   Synchronize(@DispatchInitialScan);
+
+  SetLength(FPendingInitialScanFiles, 0);
+  FPendingInitialScanCount := 0;
+  FPendingInitialScanIsFinal := False;
 end;
 
 function TWatchThread.CanMapHighLevelEvent(event: pinotify_event; fullPath: string): boolean;
@@ -640,7 +657,8 @@ begin
   Result := True;
 
   FFoundFilesCount := 0;
-  SetLength(FFoundFiles, 0);
+  FFoundFilesTotalCount := 0;
+  SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
   FWatchedFolders.Clear;
   FWatchedFolderPaths.Clear;
   FPendingMoves.Clear;
@@ -649,8 +667,14 @@ begin
   for i := Low(FPaths) to High(FPaths) do
     AddWatchRecursive(eventStreamHandle, FPaths[i]);
 
-  SetLength(FFoundFiles, FFoundFilesCount);
-  QueueInitialScan(FFoundFiles);
+  FlushInitialScanBatch;
+
+  // Final signal marks scan completion for the main-thread importer.
+  QueueInitialScan(FFoundFiles, 0, True);
+
+  SetLength(FFoundFiles, 0);
+  FFoundFilesCount := 0;
+  FFoundFilesTotalCount := 0;
 
   Result := FWatchedFolders.Count > 0;
 end;

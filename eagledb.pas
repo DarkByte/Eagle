@@ -12,6 +12,14 @@ const
   DB_FILENAME = 'eagle.sqlite';
 
 type
+  TEagleImportFileRecord = record
+    FullPath: string;
+    Size: int64;
+    Time: longint;
+  end;
+
+  TEagleImportFileRecords = array of TEagleImportFileRecord;
+
   TEagleFileRecord = record
     Name: string;
     Path: string;
@@ -27,7 +35,7 @@ type
     FConnection: TSQLite3Connection;
     FTransaction: TSQLTransaction;
     procedure EnsureSchema;
-    procedure BulkImportFiles(const AFiles: array of TSearchRec);
+    procedure BulkImportFiles(const AFiles: TEagleImportFileRecords; const ACount: integer);
   public
     constructor Create(const ADBPath: string = DB_FILENAME);
     destructor Destroy; override;
@@ -42,7 +50,12 @@ type
     procedure DeletePath(const fullPath: string);
     procedure RenamePath(const oldPath, newPath: string);
 
-    procedure SyncFiles(const AFiles: array of TSearchRec);
+    procedure BeginSyncFiles;
+    procedure ImportFilesBatch(const AFiles: TEagleImportFileRecords);
+    procedure ImportFilesBatch(const AFiles: TEagleImportFileRecords; const ACount: integer);
+    procedure EndSyncFiles;
+    procedure CancelSyncFiles;
+    procedure SyncFiles(const AFiles: TEagleImportFileRecords);
   end;
 
 implementation
@@ -380,14 +393,22 @@ begin
   end;
 end;
 
-procedure TEagleDB.BulkImportFiles(const AFiles: array of TSearchRec);
+procedure TEagleDB.BulkImportFiles(const AFiles: TEagleImportFileRecords; const ACount: integer);
 var
   query: TSQLQuery;
   i: integer;
+  upperBound: integer;
   fullPath: string;
   fileName: string;
   filePath: string;
 begin
+  if (ACount <= 0) or (Length(AFiles) = 0) then
+    Exit;
+
+  upperBound := ACount - 1;
+  if upperBound > High(AFiles) then
+    upperBound := High(AFiles);
+
   query := TSQLQuery.Create(nil);
   try
     query.DataBase := FConnection;
@@ -396,8 +417,8 @@ begin
     query.Prepare;
 
     try
-      for i := Low(AFiles) to High(AFiles) do begin
-        fullPath := AFiles[i].Name;
+      for i := Low(AFiles) to upperBound do begin
+        fullPath := AFiles[i].FullPath;
         if Pos(PathDelim, fullPath) > 0 then begin
           fileName := ExtractFileName(fullPath);
           filePath := ExtractFileDir(fullPath);
@@ -420,8 +441,7 @@ begin
   end;
 end;
 
-// full nuclear
-procedure TEagleDB.SyncFiles(const AFiles: array of TSearchRec);
+procedure TEagleDB.BeginSyncFiles;
 var
   query: TSQLQuery;
 begin
@@ -431,27 +451,72 @@ begin
   if not FTransaction.Active then
     FTransaction.StartTransaction;
 
+  query := TSQLQuery.Create(nil);
   try
-    // Delete all files from the table
-    query := TSQLQuery.Create(nil);
-    try
-      query.DataBase := FConnection;
-      query.Transaction := FTransaction;
-      query.SQL.Text := 'DELETE FROM files';
-      query.ExecSQL;
-    finally
-      query.Free;
-    end;
+    query.DataBase := FConnection;
+    query.Transaction := FTransaction;
+    query.SQL.Text := 'DELETE FROM files';
+    query.ExecSQL;
+  finally
+    query.Free;
+  end;
+end;
 
-    // Populate with new data
-    BulkImportFiles(AFiles);
+procedure TEagleDB.ImportFilesBatch(const AFiles: TEagleImportFileRecords);
+begin
+  ImportFilesBatch(AFiles, Length(AFiles));
+end;
+
+procedure TEagleDB.ImportFilesBatch(const AFiles: TEagleImportFileRecords; const ACount: integer);
+begin
+  if ACount <= 0 then
+    Exit;
+
+  if not FConnection.Connected then
+    Open;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+
+  BulkImportFiles(AFiles, ACount);
+end;
+
+procedure TEagleDB.EndSyncFiles;
+begin
+  if not FConnection.Connected then
+    Exit;
+
+  if FTransaction.Active then
     FTransaction.Commit;
-    FConnection.ExecuteDirect('PRAGMA wal_checkpoint(TRUNCATE)');
-    if not FTransaction.Active then
-      FTransaction.StartTransaction;
+
+  FConnection.ExecuteDirect('PRAGMA wal_checkpoint(TRUNCATE)');
+  FConnection.ExecuteDirect('PRAGMA shrink_memory');
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+end;
+
+procedure TEagleDB.CancelSyncFiles;
+begin
+  if not FConnection.Connected then
+    Exit;
+
+  if FTransaction.Active then
+    FTransaction.Rollback;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+end;
+
+// full nuclear
+procedure TEagleDB.SyncFiles(const AFiles: TEagleImportFileRecords);
+begin
+  try
+    BeginSyncFiles;
+    ImportFilesBatch(AFiles);
+    EndSyncFiles;
   except
-    if FTransaction.Active then
-      FTransaction.Rollback;
+    CancelSyncFiles;
     raise;
   end;
 end;
