@@ -24,7 +24,10 @@ type
 
   TEagleOptions = record
     paths: TStringList;
-    watchRecursively: boolean;
+
+    searchRecursively: boolean;
+    watchChanges: boolean;
+
     searchPath: boolean;
     prettySize: boolean;
     showOnlyDate: boolean;
@@ -220,7 +223,8 @@ begin
     eagleOptions.middleClickAction := IntegerToItemAction(ini.ReadInteger('Search', 'MiddleClickAction', Ord(iaIgnore)), iaIgnore);
     eagleOptions.afterOpenAction := IntegerToOpenAction(ini.ReadInteger('Search', 'AfterOpenAction', Ord(oaNothing)), oaNothing);
 
-    eagleOptions.watchRecursively := ini.ReadBool('Paths', 'WatchRecursively', True);
+    eagleOptions.searchRecursively := ini.ReadBool('Paths', 'SearchRecursively', True);
+    eagleOptions.watchChanges := ini.ReadBool('Paths', 'WatchChanges', True);
     Count := ini.ReadInteger('Paths', 'Count', 0);
     lastPathCount := Count;
     for i := 1 to Count do begin
@@ -275,7 +279,9 @@ begin
     ini.WriteInteger('Search', 'MiddleClickAction', Ord(eagleOptions.middleClickAction));
     ini.WriteInteger('Search', 'AfterOpenAction', Ord(eagleOptions.afterOpenAction));
 
-    ini.WriteBool('Paths', 'WatchRecursively', eagleOptions.watchRecursively);
+    ini.WriteBool('Paths', 'SearchRecursively', eagleOptions.searchRecursively);
+    ini.WriteBool('Paths', 'WatchChanges', eagleOptions.watchChanges);
+
     ini.WriteInteger('Paths', 'Count', eagleOptions.paths.Count);
     for i := 0 to eagleOptions.paths.Count - 1 do
       ini.WriteString('Paths', 'Path' + IntToStr(i + 1), eagleOptions.paths[i]);

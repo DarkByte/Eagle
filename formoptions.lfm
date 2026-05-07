@@ -25,13 +25,13 @@ object OptionsForm: TOptionsForm
     Height = 299
     Top = 8
     Width = 575
-    ActivePage = tabSearchResults
+    ActivePage = tabLocations
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.CellAlignHorizontal = ccaLeftTop
     BorderSpacing.CellAlignVertical = ccaLeftTop
     Options = [nboDoChangeOnSetIndex]
     Style = tsFlatButtons
-    TabIndex = 1
+    TabIndex = 0
     TabOrder = 1
     object tabLocations: TTabSheet
       Caption = 'Locations'
@@ -49,7 +49,6 @@ object OptionsForm: TOptionsForm
         ItemHeight = 21
         Style = lbOwnerDrawFixed
         TabOrder = 0
-        TopIndex = -1
         OnSelectionChange = pathListBoxSelectionChange
       end
       object Label1: TLabel
@@ -90,12 +89,23 @@ object OptionsForm: TOptionsForm
       object cbRecursive: TCheckBox
         Left = 16
         Height = 23
-        Top = 152
-        Width = 129
-        Caption = 'Watch recursively'
+        Top = 160
+        Width = 132
+        Caption = 'Search recursively'
         Checked = True
         State = cbChecked
         TabOrder = 4
+        OnChange = cbRecursiveChange
+      end
+      object cbWatchChanges: TCheckBox
+        Left = 16
+        Height = 23
+        Top = 192
+        Width = 195
+        Caption = 'Watch for real-time changes'
+        Checked = True
+        State = cbChecked
+        TabOrder = 5
         OnChange = cbRecursiveChange
       end
     end
@@ -270,7 +280,7 @@ object OptionsForm: TOptionsForm
       object cbLimitResults: TCheckBox
         Left = 16
         Height = 23
-        Top = 145
+        Top = 144
         Width = 117
         Caption = 'Limit results to:'
         TabOrder = 8
@@ -279,7 +289,7 @@ object OptionsForm: TOptionsForm
       object edtLimitCount: TEdit
         Left = 135
         Height = 31
-        Top = 142
+        Top = 141
         Width = 65
         Enabled = False
         TabOrder = 9

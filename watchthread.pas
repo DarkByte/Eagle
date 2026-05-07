@@ -366,7 +366,8 @@ var
   sr: TSearchRec;
   childPath, rootPathWithDelim: string;
 begin
-  AddWatchDir(rootPath);
+  if eagleOptions.watchChanges then
+    AddWatchDir(rootPath);
 
   rootPathWithDelim := IncludeTrailingPathDelimiter(rootPath);
   if FindFirst(rootPathWithDelim + '*', faAnyFile, sr) = 0 then
@@ -650,6 +651,7 @@ begin
 end;
 
 // HELPERS
+{$REGION HELPERS}
 function TWatchThread.WatchAndScan: boolean;
 var
   i: integer;
@@ -666,10 +668,9 @@ begin
 
   for i := Low(FPaths) to High(FPaths) do
     AddWatchRecursive(eventStreamHandle, FPaths[i]);
+  FlushInitialScanBatch; // final flush
 
-  FlushInitialScanBatch;
-
-  // Final signal marks scan completion for the main-thread importer.
+  // clean up
   QueueInitialScan(FFoundFiles, 0, True);
 
   SetLength(FFoundFiles, 0);
@@ -703,5 +704,6 @@ procedure TWatchThread.MoveToNext(var offset: cint; event: pinotify_event);
 begin
   offset := offset + 16 + event^.len;
 end;
+{$ENDREGION}
 
 end.

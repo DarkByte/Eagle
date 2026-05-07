@@ -16,16 +16,19 @@ type
     btnPathOptions: TButton;
     btnPathRemove: TButton;
 
+    cbRecursive: TCheckBox;
+    cbWatchChanges: TCheckBox;
+
     cbCtrlClick: TComboBox;
     cbAltClick: TComboBox;
     cbCloseTray: TCheckBox;
     cbAfterOpen: TComboBox;
     cbEscToMinimize: TCheckBox;
+
     cbShiftClick: TComboBox;
     cbDoubleClick: TComboBox;
     cbMiddleClick: TComboBox;
 
-    cbRecursive: TCheckBox;
     cbPrettySize: TCheckBox;
     cbStartMinimized: TCheckBox;
     cbRunStartup: TCheckBox;
@@ -95,7 +98,8 @@ begin
   pathListBox.Items.Clear;
   LoadConfig;
 
-  cbRecursive.Checked := eagleOptions.watchRecursively;
+  cbRecursive.Checked := eagleOptions.searchRecursively;
+  cbWatchChanges.Checked := eagleOptions.watchChanges;
 
   cbSearchPath.Checked   := eagleOptions.searchPath;
   cbPrettySize.Checked   := eagleOptions.prettySize;
@@ -130,7 +134,8 @@ begin
 
   shouldRestartIPCServer := (eagleOptions.allowIPC <> cbAllowIPC.Checked);
 
-  eagleOptions.watchRecursively := cbRecursive.Checked;
+  eagleOptions.searchRecursively := cbRecursive.Checked;
+  eagleOptions.watchChanges := cbWatchChanges.Checked;
 
   eagleOptions.searchPath   := cbSearchPath.Checked;
   eagleOptions.prettySize   := cbPrettySize.Checked;
