@@ -17,6 +17,7 @@ type
   { TMainForm }
   TMainForm = class(TForm)
     btnEagle: TBitBtn;
+    btnJustWatch: TButton;
     edtFilter: TEdit;
     fileTree: TLazVirtualStringTree;
     Label1: TLabel;
@@ -45,6 +46,7 @@ type
     TrayIcon: TTrayIcon;
 
     procedure btnEagleClick(Sender: TObject);
+    procedure btnJustWatchClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure timerFilterDebounceTimer(Sender: TObject);
@@ -102,6 +104,7 @@ type
     procedure HandleRename(const AOldPath, ANewPath: string);
     procedure HandleInitialScan(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean);
     procedure HandleScanProgress(const ACount: integer);
+    procedure HandleWatchDone;
 
     procedure SetupWatchThread;
     procedure SetupDB;
@@ -227,6 +230,7 @@ begin
   FWatchThread.SetOnRename(@HandleRename);
   FWatchThread.SetOnInitialScan(@HandleInitialScan);
   FWatchThread.SetOnScanProgress(@HandleScanProgress);
+  FWatchThread.SetOnDone(@HandleWatchDone);
 end;
 
 procedure TMainForm.StopWatching;
@@ -315,8 +319,6 @@ end;
 
 // Actions
 procedure TMainForm.btnEagleClick(Sender: TObject);
-var
-  i: integer;
 begin
   benchStamp.InsertTime('Starting watchThread');
   Memo1.Lines.Add(benchStamp.StampNow('starting search...'));
@@ -325,10 +327,20 @@ begin
 
   btnEagle.Enabled := False;
   if FWatchThread.Suspended then begin
-    for i := 0 to eagleOptions.paths.Count - 1 do
-      FWatchThread.AddWatchPath(eagleOptions.paths[i]);
-
     FWatchThread.Start;
+    FWatchThread.ScanFolders(eagleOptions.paths);
+  end;
+end;
+
+procedure TMainForm.btnJustWatchClick(Sender: TObject);
+begin
+  btnEagle.Enabled := False;
+  if not Assigned(FWatchThread) then
+    SetupWatchThread;
+
+  if FWatchThread.Suspended then begin
+    FWatchThread.Start;
+    FWatchThread.WatchFromDB;
   end;
 end;
 
@@ -833,6 +845,11 @@ end;
 procedure TMainForm.HandleScanProgress(const ACount: integer);
 begin
   Memo1.Lines.Add('[SCAN] ' + IntToStr(ACount) + ' files found so far...');
+end;
+
+procedure TMainForm.HandleWatchDone;
+begin
+  btnEagle.Enabled := True;
 end;
 {$ENDREGION}
 

@@ -11,7 +11,7 @@ uses
   TimeCheck,
   main,
   utils,
-  eagleipc { you can add units after this };
+  eagleipc;
 
   {$R *.res}
 

@@ -6,8 +6,8 @@ interface
 
 uses
   utils,
-  Classes, SysUtils, BaseUnix, Generics.Collections,
-  EagleDB;
+  Classes, SysUtils, SyncObjs, BaseUnix, Generics.Collections,
+  EagleDB, scanthread;
 
 const
   IN_MODIFY     = $00000002;
@@ -20,10 +20,8 @@ const
 
   DIR_WATCH_MASK = IN_CREATE or IN_MODIFY or IN_DELETE or IN_MOVED_FROM or IN_MOVED_TO or IN_ATTRIB;
 
-  SHOULD_CONTINUE = 1;
-  SHOULD_BREAK    = 2;
-  SHOULD_PROCESS  = 3;
   INITIAL_SCAN_BATCH_SIZE = 4096;
+  FOLDER_WATCH_BATCH_SIZE = 1024;
 
   PENDING_MOVE_TIMEOUT_MS = 500;
 
@@ -40,6 +38,7 @@ type
   TWatchLogHandler = procedure(const AMessage: string) of object;
   TWatchInitialScanHandler = procedure(const AFiles: TEagleImportFileRecords; const ACount: integer; const AIsFinal: boolean) of object;
   TWatchScanProgressHandler = procedure(const ACount: integer) of object;
+  TWatchDoneHandler = procedure of object;
 
   pinotify_event = ^inotify_event;
 
@@ -56,7 +55,10 @@ type
   private
     eventStreamHandle: cint;
 
-    FPaths: array of string;
+    FCmdLock: TCriticalSection;
+    FPendingScanPaths: TStringList;
+    FPendingWatchFromDB: boolean;
+
     FFoundFiles: TEagleImportFileRecords;
     FFoundFilesCount: integer;
     FFoundFilesTotalCount: integer;
@@ -75,6 +77,7 @@ type
     FOnLog: TWatchLogHandler;
     FOnInitialScan: TWatchInitialScanHandler;
     FOnScanProgress: TWatchScanProgressHandler;
+    FOnDone: TWatchDoneHandler;
 
     FPendingLogMessage: string;
     FPendingScanProgressCount: integer;
@@ -86,8 +89,6 @@ type
 
     function NormalizePathKey(const APath: string): string;
     function AddWatchDir(const dirPath: string): boolean;
-    procedure AddFileToList(const AFullPath: string; const ASize: int64; const ATime: longint);
-    procedure AddWatchRecursive(fd: cint; const rootPath: string);
 
     function GetWatchPath(wd: cint): string;
     function BuildChildPath(const parentPath, Name: string): string;
@@ -98,13 +99,18 @@ type
 
     procedure RenameWatchPathPrefix(const AOldPrefix, ANewPrefix: string);
 
-    procedure ProcessEvents;
+    function ProcessFolderNotifyEvents: boolean;
+    procedure ProcessPendingCommands;
+    procedure ExecuteScan(const APaths: TStringList);
+    procedure ExecuteWatchDB;
     procedure DispatchLog;
     procedure DispatchCreate;
     procedure DispatchDelete;
     procedure DispatchRename;
     procedure DispatchInitialScan;
     procedure DispatchScanProgress;
+    procedure DispatchDone;
+    procedure QueueDone;
     procedure QueueScanProgressIfDue;
     procedure QueueLog(const AMessage: string);
     procedure QueueCreate(const APath: string);
@@ -116,15 +122,13 @@ type
 
     function GetEventFileName(event: pinotify_event): string;
 
-    function ShouldProcess(bytesRead: cint): cint;
-
     function CanMapHighLevelEvent(event: pinotify_event; fullPath: string): boolean;
     procedure ProcessFolderEvents(event: pinotify_event; fullPath: string);
     procedure ProcessFileEvents(event: pinotify_event; fullPath: string);
 
     procedure InitEventStreamHandle;
     procedure CloseWatchHandles;
-    function WatchAndScan: boolean;
+    function LoadWatchesFromDB: integer;
     procedure MoveToNext(var offset: cint; event: pinotify_event);
   protected
     procedure Execute; override;
@@ -132,7 +136,9 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure AddWatchPath(const APath: string);
+    procedure ScanFolders(const APaths: array of string); overload;
+    procedure ScanFolders(const APaths: TStringList); overload;
+    procedure WatchFromDB;
 
     procedure SetOnCreate(const AHandler: TWatchEventHandler);
     procedure SetOnModify(const AHandler: TWatchEventHandler);
@@ -143,6 +149,7 @@ type
     procedure SetOnLog(const AHandler: TWatchLogHandler);
     procedure SetOnInitialScan(const AHandler: TWatchInitialScanHandler);
     procedure SetOnScanProgress(const AHandler: TWatchScanProgressHandler);
+    procedure SetOnDone(const AHandler: TWatchDoneHandler);
   end;
 
 implementation
@@ -155,6 +162,9 @@ function inotify_rm_watch(fd: cint; wd: cint): cint; cdecl; external 'libc' name
 
 constructor TWatchThread.Create;
 begin
+  FCmdLock := TCriticalSection.Create;
+  FPendingScanPaths := TStringList.Create;
+  FPendingWatchFromDB := False;
   FWatchedFolders := specialize TDictionary<cint, string>.Create;
   FWatchedFolderPaths := specialize TDictionary<string, cint>.Create;
   FPendingMoves := specialize TDictionary<cuint32, TPendingMove>.Create;
@@ -164,20 +174,13 @@ end;
 
 destructor TWatchThread.Destroy;
 begin
+  FPendingScanPaths.Free;
+  FCmdLock.Free;
   FWatchedFolderPaths.Free;
   FWatchedFolders.Free;
   FPendingMoves.Free;
 
   inherited Destroy;
-end;
-
-procedure TWatchThread.AddWatchPath(const APath: string);
-var
-  pathCount: integer;
-begin
-  pathCount := Length(FPaths);
-  SetLength(FPaths, pathCount + 1);
-  FPaths[pathCount] := ExcludeTrailingPathDelimiter(APath);
 end;
 
 procedure TWatchThread.SetOnCreate(const AHandler: TWatchEventHandler);
@@ -218,6 +221,180 @@ end;
 procedure TWatchThread.SetOnScanProgress(const AHandler: TWatchScanProgressHandler);
 begin
   FOnScanProgress := AHandler;
+end;
+
+procedure TWatchThread.SetOnDone(const AHandler: TWatchDoneHandler);
+begin
+  FOnDone := AHandler;
+end;
+
+procedure TWatchThread.ScanFolders(const APaths: array of string);
+var
+  i: integer;
+begin
+  FCmdLock.Enter;
+  try
+    for i := Low(APaths) to High(APaths) do
+      FPendingScanPaths.Add(ExcludeTrailingPathDelimiter(APaths[i]));
+  finally
+    FCmdLock.Leave;
+  end;
+end;
+
+procedure TWatchThread.ScanFolders(const APaths: TStringList);
+var
+  i: integer;
+begin
+  FCmdLock.Enter;
+  try
+    for i := 0 to APaths.Count - 1 do
+      FPendingScanPaths.Add(ExcludeTrailingPathDelimiter(APaths[i]));
+  finally
+    FCmdLock.Leave;
+  end;
+end;
+
+procedure TWatchThread.WatchFromDB;
+begin
+  FCmdLock.Enter;
+  try
+    FPendingWatchFromDB := True;
+  finally
+    FCmdLock.Leave;
+  end;
+end;
+
+procedure TWatchThread.ProcessPendingCommands;
+var
+  pathsToScan: TStringList;
+  doWatchDB: boolean;
+begin
+  pathsToScan := nil;
+  doWatchDB := False;
+
+  FCmdLock.Enter;
+  try
+    if FPendingScanPaths.Count > 0 then begin
+      pathsToScan := TStringList.Create;
+      pathsToScan.Assign(FPendingScanPaths);
+      FPendingScanPaths.Clear;
+    end;
+    if FPendingWatchFromDB then begin
+      doWatchDB := True;
+      FPendingWatchFromDB := False;
+    end;
+  finally
+    FCmdLock.Leave;
+  end;
+
+  if doWatchDB then
+    ExecuteWatchDB;
+
+  if Assigned(pathsToScan) then
+  try
+    ExecuteScan(pathsToScan);
+  finally
+    pathsToScan.Free;
+  end;
+end;
+
+procedure TWatchThread.ExecuteScan(const APaths: TStringList);
+var
+  scanThread: TScanThread;
+  i, fileBatchCount, folderBatchCount: integer;
+  folderBatch: TStringList;
+  fileBatch: TEagleImportFileRecords;
+  hadData: boolean;
+begin
+  folderBatch := TStringList.Create;
+  SetLength(fileBatch, 0);
+
+  FFoundFilesCount := 0;
+  FFoundFilesTotalCount := 0;
+  SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
+  FLastProgressTime := GetTickCount64;
+
+  scanThread := TScanThread.Create(APaths);
+  try
+    scanThread.Start;
+
+    while not Terminated do begin
+      hadData := False;
+
+      if eagleOptions.watchChanges then begin
+        folderBatchCount := scanThread.DequeueFoldersBatch(FOLDER_WATCH_BATCH_SIZE, folderBatch);
+        if folderBatchCount > 0 then begin
+          for i := 0 to folderBatchCount - 1 do
+            AddWatchDir(folderBatch[i]);
+          hadData := True;
+        end;
+      end;
+
+      if scanThread.DequeueFilesBatch(INITIAL_SCAN_BATCH_SIZE, fileBatch, fileBatchCount) then begin
+        for i := 0 to fileBatchCount - 1 do begin
+          AppendFoundFile(fileBatch[i]);
+          QueueScanProgressIfDue;
+        end;
+        hadData := True;
+      end;
+
+      if scanThread.IsFinished and (not scanThread.HasPendingData) then
+        Break;
+
+      if not hadData then
+        TThread.Sleep(20);
+    end;
+
+    if Terminated and (not scanThread.IsFinished) then
+      scanThread.Terminate;
+    scanThread.WaitFor;
+
+    if eagleOptions.watchChanges then begin
+      folderBatchCount := scanThread.DequeueFoldersBatch(FOLDER_WATCH_BATCH_SIZE, folderBatch);
+      while folderBatchCount > 0 do begin
+        for i := 0 to folderBatchCount - 1 do
+          AddWatchDir(folderBatch[i]);
+        folderBatchCount := scanThread.DequeueFoldersBatch(FOLDER_WATCH_BATCH_SIZE, folderBatch);
+      end;
+    end;
+
+    while scanThread.DequeueFilesBatch(INITIAL_SCAN_BATCH_SIZE, fileBatch, fileBatchCount) do begin
+      for i := 0 to fileBatchCount - 1 do begin
+        AppendFoundFile(fileBatch[i]);
+        QueueScanProgressIfDue;
+      end;
+    end;
+
+    FlushInitialScanBatch;
+    QueueInitialScan(FFoundFiles, 0, True);
+
+    SetLength(FFoundFiles, 0);
+    FFoundFilesCount := 0;
+    FFoundFilesTotalCount := 0;
+    QueueDone;
+  finally
+    scanThread.Free;
+    folderBatch.Free;
+    SetLength(fileBatch, 0);
+  end;
+end;
+
+procedure TWatchThread.ExecuteWatchDB;
+begin
+  QueueLog('[WATCH] Loading watch folders from DB...');
+  LoadWatchesFromDB;
+  QueueDone;
+end;
+
+procedure TWatchThread.DispatchDone;
+begin
+  if Assigned(FOnDone) then
+    FOnDone;
+end;
+
+procedure TWatchThread.QueueDone;
+begin
+  Synchronize(@DispatchDone);
 end;
 
 procedure TWatchThread.DispatchLog;
@@ -347,46 +524,6 @@ begin
   FWatchedFolders.AddOrSetValue(wd, dirPath);
   FWatchedFolderPaths.AddOrSetValue(normalizedPath, wd);
   Result := True;
-end;
-
-// notify main thread of progress - will remove after testing
-procedure TWatchThread.AddFileToList(const AFullPath: string; const ASize: int64; const ATime: longint);
-var
-  fileEntry: TEagleImportFileRecord;
-begin
-  fileEntry.FullPath := AFullPath;
-  fileEntry.Size := ASize;
-  fileEntry.Time := ATime;
-  AppendFoundFile(fileEntry);
-  QueueScanProgressIfDue;
-end;
-
-procedure TWatchThread.AddWatchRecursive(fd: cint; const rootPath: string);
-var
-  sr: TSearchRec;
-  childPath, rootPathWithDelim: string;
-begin
-  if eagleOptions.watchChanges then
-    AddWatchDir(rootPath);
-
-  rootPathWithDelim := IncludeTrailingPathDelimiter(rootPath);
-  if FindFirst(rootPathWithDelim + '*', faAnyFile, sr) = 0 then
-  try
-    repeat
-      if (sr.Name = '.') or (sr.Name = '..') then
-        Continue;
-
-      childPath := rootPathWithDelim + sr.Name;
-      if (sr.Attr and faDirectory) <> 0 then begin
-        AddWatchRecursive(fd, childPath);
-        Continue;
-      end;
-
-      AddFileToList(childPath, sr.Size, sr.Time);
-    until FindNext(sr) <> 0;
-  finally
-    FindClose(sr);
-  end;
 end;
 
 function TWatchThread.GetEventFileName(event: pinotify_event): string;
@@ -569,82 +706,61 @@ begin
           QueueLog('[EVENT] ' + fullPath);
 end;
 
-function TWatchThread.ShouldProcess(bytesRead: cint): cint;
-begin
-  if bytesRead < 0 then begin
-    if (fpgeterrno = ESysEINTR) or (fpgeterrno = ESysEAGAIN) then begin
-      TThread.Sleep(25);
-      Exit(SHOULD_CONTINUE);
-    end;
-
-    Exit(SHOULD_BREAK);
-  end;
-
-  if bytesRead = 0 then begin
-    TThread.Sleep(25);
-    Exit(SHOULD_CONTINUE);
-  end;
-
-  Result := SHOULD_PROCESS;
-end;
-
-procedure TWatchThread.ProcessEvents;
+function TWatchThread.ProcessFolderNotifyEvents: boolean;
 var
   buffer: array[0..8191] of char;
   bytesRead, offset: cint;
   event: pinotify_event;
   eventName, parentPath, fullPath: string;
 begin
-  while not Terminated do begin
-    FlushExpiredPendingMoves;
+  Result := False;
 
-    // check the stream buffer
-    bytesRead := fpread(eventStreamHandle, @buffer[0], SizeOf(buffer));
-    case ShouldProcess(bytesRead) of
-      SHOULD_CONTINUE: Continue;
-      SHOULD_BREAK: Break;
-    end;
+  if eventStreamHandle < 0 then
+    Exit;
 
-    // read the buffer, one notification at a time
-    offset := 0;
-    while offset < bytesRead do begin
-      if Terminated then
-        Break;
+  bytesRead := fpread(eventStreamHandle, @buffer[0], SizeOf(buffer));
+  if bytesRead <= 0 then
+    Exit;
 
-      event := pinotify_event(@buffer[offset]);
-      eventName := GetEventFileName(event);
+  Result := True;
+  offset := 0;
+  while offset < bytesRead do begin
+    if Terminated then
+      Break;
 
-      if IsIgnoredTempFileName(eventName) then begin
-        MoveToNext(offset, event);
-        Continue;
-      end;
+    event := pinotify_event(@buffer[offset]);
+    eventName := GetEventFileName(event);
 
+    if not IsIgnoredTempFileName(eventName) then begin
       parentPath := GetWatchPath(event^.wd);
       fullPath := BuildChildPath(parentPath, eventName);
 
-      if CanMapHighLevelEvent(event, fullPath) then begin
-        MoveToNext(offset, event);
-        Continue;
+      if not CanMapHighLevelEvent(event, fullPath) then begin
+        ProcessFolderEvents(event, fullPath);
+        ProcessFileEvents(event, fullPath);
       end;
-
-      ProcessFolderEvents(event, fullPath);
-      ProcessFileEvents(event, fullPath);
-
-      offset := offset + 16 + event^.len;
     end;
+
+    MoveToNext(offset, event);
   end;
 end;
 
 procedure TWatchThread.Execute;
 begin
-  eventStreamHandle := -1;
+  InitEventStreamHandle;
+  if eventStreamHandle < 0 then begin
+    QueueLog('[ERROR] Failed to initialize inotify');
+    Exit;
+  end;
+
   try
-    InitEventStreamHandle;
+    while not Terminated do begin
+      ProcessPendingCommands;
+      if not ProcessFolderNotifyEvents then
+        TThread.Sleep(200);
 
-    if not WatchAndScan then
-      Exit;
-
-    ProcessEvents;
+      FlushExpiredPendingMoves;
+    end;
   finally
     CloseWatchHandles;
   end;
@@ -652,32 +768,35 @@ end;
 
 // HELPERS
 {$REGION HELPERS}
-function TWatchThread.WatchAndScan: boolean;
+function TWatchThread.LoadWatchesFromDB: integer;
 var
+  db: TEagleDB;
+  folders: TStringList;
   i: integer;
 begin
-  Result := True;
+  Result := 0;
+  db := TEagleDB.Create;
+  try
+    db.Open;
+    QueueLog('[WATCH] Getting DB folders');
+    folders := db.GetUniqueFolders;
+    QueueLog('[WATCH] Getting DB folders - done');
+    try
+      for i := 0 to folders.Count - 1 do begin
+        if Terminated then
+          Break;
 
-  FFoundFilesCount := 0;
-  FFoundFilesTotalCount := 0;
-  SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
-  FWatchedFolders.Clear;
-  FWatchedFolderPaths.Clear;
-  FPendingMoves.Clear;
-  FLastProgressTime := GetTickCount64;
+        if AddWatchDir(folders[i]) then
+          Inc(Result);
+      end;
+    finally
+      folders.Free;
+    end;
+  finally
+    db.Free;
+  end;
 
-  for i := Low(FPaths) to High(FPaths) do
-    AddWatchRecursive(eventStreamHandle, FPaths[i]);
-  FlushInitialScanBatch; // final flush
-
-  // clean up
-  QueueInitialScan(FFoundFiles, 0, True);
-
-  SetLength(FFoundFiles, 0);
-  FFoundFilesCount := 0;
-  FFoundFilesTotalCount := 0;
-
-  Result := FWatchedFolders.Count > 0;
+  QueueLog('[WATCH] Added ' + IntToStr(Result) + ' folders from DB');
 end;
 
 procedure TWatchThread.InitEventStreamHandle;

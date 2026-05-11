@@ -44,6 +44,7 @@ type
     procedure Close;
     function IsOpen: boolean;
     function GetFiles(const AFilterText: string; searchPath: boolean; limit: Integer = 0): TEagleFileRecords;
+    function GetUniqueFolders: TStringList;
 
     procedure AddFile(Name, path: string; size: int64; timestamp: longint);
     procedure DeleteFile(const fullPath: string);
@@ -189,6 +190,40 @@ begin
       Result[itemCount].Time := query.FieldByName('timestamp').AsInteger;
 
       Inc(itemCount);
+      query.Next;
+    end;
+
+    query.Close;
+  finally
+    query.Free;
+  end;
+end;
+
+function TEagleDB.GetUniqueFolders: TStringList;
+var
+  query: TSQLQuery;
+begin
+  Result := TStringList.Create;
+
+  if not FConnection.Connected then
+    Open;
+
+  if not FTransaction.Active then
+    FTransaction.StartTransaction;
+
+  query := TSQLQuery.Create(nil);
+  try
+    query.DataBase := FConnection;
+    query.Transaction := FTransaction;
+    query.SQL.Text :=
+      'SELECT DISTINCT path ' +
+      'FROM files ' +
+      'WHERE path IS NOT NULL AND path <> '''' ' +
+      'ORDER BY path';
+    query.Open;
+
+    while not query.EOF do begin
+      Result.Add(query.Fields[0].AsString);
       query.Next;
     end;
 
