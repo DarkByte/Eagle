@@ -5,36 +5,31 @@ unit scanthread;
 interface
 
 uses
-  Classes, SysUtils, SyncObjs, EagleDB;
+  Classes, SysUtils, EagleDB;
 
 const
   INITIAL_SCAN_BATCH_SIZE = 4096;
   SCAN_FOLDER_BATCH_SIZE = 1024;
 
 type
+  TScanFolderBatch = array of string;
+  TScanFoldersBatchHandler = procedure(const AFolders: TScanFolderBatch; const ACount: integer) of object;
+  TScanFilesBatchHandler = procedure(const AFiles: TEagleImportFileRecords; const ACount: integer) of object;
+  TScanDoneHandler = procedure of object;
+
   TScanThread = class(TThread)
   private
     FPaths: TStringList;
-    FQueueLock: TCriticalSection;
-    FFinished: boolean;
 
     FLocalFolders: array of string;
     FLocalFolderCount: integer;
     FLocalFiles: TEagleImportFileRecords;
     FLocalFileCount: integer;
 
-    FPendingFolders: array of string;
-    FPendingFolderStart: integer;
-    FPendingFolderCount: integer;
+    FOnFoldersBatch: TScanFoldersBatchHandler;
+    FOnFilesBatch: TScanFilesBatchHandler;
+    FOnDone: TScanDoneHandler;
 
-    FPendingFiles: TEagleImportFileRecords;
-    FPendingFileStart: integer;
-    FPendingFileCount: integer;
-
-    procedure EnsurePendingFolderCapacity(const AAdditional: integer);
-    procedure EnsurePendingFileCapacity(const AAdditional: integer);
-    procedure CompactPendingFoldersIfNeeded;
-    procedure CompactPendingFilesIfNeeded;
     procedure FlushLocalFolders;
     procedure FlushLocalFiles;
     procedure AddFolder(const APath: string);
@@ -46,10 +41,9 @@ type
     constructor Create(const APaths: TStringList);
     destructor Destroy; override;
 
-    function DequeueFoldersBatch(const AMaxCount: integer; ABatch: TStringList): integer;
-    function DequeueFilesBatch(const AMaxCount: integer; out ABatch: TEagleImportFileRecords; out ACount: integer): boolean;
-    function HasPendingData: boolean;
-    function IsFinished: boolean;
+    procedure SetOnFoldersBatch(const AHandler: TScanFoldersBatchHandler);
+    procedure SetOnFilesBatch(const AHandler: TScanFilesBatchHandler);
+    procedure SetOnDone(const AHandler: TScanDoneHandler);
   end;
 
 implementation
@@ -58,15 +52,9 @@ constructor TScanThread.Create(const APaths: TStringList);
 begin
   FPaths := TStringList.Create;
   FPaths.Assign(APaths);
-  FQueueLock := TCriticalSection.Create;
-  FFinished := False;
 
   FLocalFolderCount := 0;
   FLocalFileCount := 0;
-  FPendingFolderStart := 0;
-  FPendingFolderCount := 0;
-  FPendingFileStart := 0;
-  FPendingFileCount := 0;
 
   inherited Create(True);
 end;
@@ -75,109 +63,24 @@ destructor TScanThread.Destroy;
 begin
   SetLength(FLocalFolders, 0);
   SetLength(FLocalFiles, 0);
-  SetLength(FPendingFolders, 0);
-  SetLength(FPendingFiles, 0);
-
-  FQueueLock.Free;
   FPaths.Free;
 
   inherited Destroy;
 end;
 
-procedure TScanThread.EnsurePendingFolderCapacity(const AAdditional: integer);
-var
-  needed, newLen: integer;
-begin
-  needed := FPendingFolderStart + FPendingFolderCount + AAdditional;
-  if needed <= Length(FPendingFolders) then
-    Exit;
-
-  CompactPendingFoldersIfNeeded;
-  needed := FPendingFolderStart + FPendingFolderCount + AAdditional;
-  if needed <= Length(FPendingFolders) then
-    Exit;
-
-  newLen := Length(FPendingFolders);
-  if newLen = 0 then
-    newLen := AAdditional;
-
-  while newLen < needed do
-    newLen := newLen * 2;
-
-  SetLength(FPendingFolders, newLen);
-end;
-
-procedure TScanThread.EnsurePendingFileCapacity(const AAdditional: integer);
-var
-  needed, newLen: integer;
-begin
-  needed := FPendingFileStart + FPendingFileCount + AAdditional;
-  if needed <= Length(FPendingFiles) then
-    Exit;
-
-  CompactPendingFilesIfNeeded;
-  needed := FPendingFileStart + FPendingFileCount + AAdditional;
-  if needed <= Length(FPendingFiles) then
-    Exit;
-
-  newLen := Length(FPendingFiles);
-  if newLen = 0 then
-    newLen := AAdditional;
-
-  while newLen < needed do
-    newLen := newLen * 2;
-
-  SetLength(FPendingFiles, newLen);
-end;
-
-procedure TScanThread.CompactPendingFoldersIfNeeded;
-var
-  i: integer;
-begin
-  if (FPendingFolderStart = 0) or (FPendingFolderCount = 0) then begin
-    if FPendingFolderCount = 0 then
-      FPendingFolderStart := 0;
-    Exit;
-  end;
-
-  for i := 0 to FPendingFolderCount - 1 do
-    FPendingFolders[i] := FPendingFolders[FPendingFolderStart + i];
-
-  FPendingFolderStart := 0;
-end;
-
-procedure TScanThread.CompactPendingFilesIfNeeded;
-var
-  i: integer;
-begin
-  if (FPendingFileStart = 0) or (FPendingFileCount = 0) then begin
-    if FPendingFileCount = 0 then
-      FPendingFileStart := 0;
-    Exit;
-  end;
-
-  for i := 0 to FPendingFileCount - 1 do
-    FPendingFiles[i] := FPendingFiles[FPendingFileStart + i];
-
-  FPendingFileStart := 0;
-end;
-
 procedure TScanThread.FlushLocalFolders;
 var
-  i, targetIndex: integer;
+  i: integer;
+  packet: TScanFolderBatch;
 begin
   if FLocalFolderCount = 0 then
     Exit;
 
-  FQueueLock.Enter;
-  try
-    EnsurePendingFolderCapacity(FLocalFolderCount);
-    targetIndex := FPendingFolderStart + FPendingFolderCount;
+  if Assigned(FOnFoldersBatch) then begin
+    SetLength(packet, FLocalFolderCount);
     for i := 0 to FLocalFolderCount - 1 do
-      FPendingFolders[targetIndex + i] := FLocalFolders[i];
-    Inc(FPendingFolderCount, FLocalFolderCount);
-  finally
-    FQueueLock.Leave;
+      packet[i] := FLocalFolders[i];
+    FOnFoldersBatch(packet, FLocalFolderCount);
   end;
 
   FLocalFolderCount := 0;
@@ -185,20 +88,17 @@ end;
 
 procedure TScanThread.FlushLocalFiles;
 var
-  i, targetIndex: integer;
+  i: integer;
+  packet: TEagleImportFileRecords;
 begin
   if FLocalFileCount = 0 then
     Exit;
 
-  FQueueLock.Enter;
-  try
-    EnsurePendingFileCapacity(FLocalFileCount);
-    targetIndex := FPendingFileStart + FPendingFileCount;
+  if Assigned(FOnFilesBatch) then begin
+    SetLength(packet, FLocalFileCount);
     for i := 0 to FLocalFileCount - 1 do
-      FPendingFiles[targetIndex + i] := FLocalFiles[i];
-    Inc(FPendingFileCount, FLocalFileCount);
-  finally
-    FQueueLock.Leave;
+      packet[i] := FLocalFiles[i];
+    FOnFilesBatch(packet, FLocalFileCount);
   end;
 
   FLocalFileCount := 0;
@@ -277,98 +177,23 @@ begin
   FlushLocalFolders;
   FlushLocalFiles;
 
-  FQueueLock.Enter;
-  try
-    FFinished := True;
-  finally
-    FQueueLock.Leave;
-  end;
+  if Assigned(FOnDone) then
+    FOnDone;
 end;
 
-function TScanThread.DequeueFoldersBatch(const AMaxCount: integer; ABatch: TStringList): integer;
-var
-  i, takeCount: integer;
+procedure TScanThread.SetOnFoldersBatch(const AHandler: TScanFoldersBatchHandler);
 begin
-  ABatch.Clear;
-
-  if AMaxCount <= 0 then
-    Exit(0);
-
-  FQueueLock.Enter;
-  try
-    if FPendingFolderCount = 0 then
-      Exit(0);
-
-    takeCount := AMaxCount;
-    if takeCount > FPendingFolderCount then
-      takeCount := FPendingFolderCount;
-
-    for i := 0 to takeCount - 1 do
-      ABatch.Add(FPendingFolders[FPendingFolderStart + i]);
-
-    Inc(FPendingFolderStart, takeCount);
-    Dec(FPendingFolderCount, takeCount);
-    if FPendingFolderCount = 0 then
-      FPendingFolderStart := 0;
-    Result := takeCount;
-  finally
-    FQueueLock.Leave;
-  end;
+  FOnFoldersBatch := AHandler;
 end;
 
-function TScanThread.DequeueFilesBatch(const AMaxCount: integer; out ABatch: TEagleImportFileRecords; out ACount: integer): boolean;
-var
-  i, takeCount: integer;
+procedure TScanThread.SetOnFilesBatch(const AHandler: TScanFilesBatchHandler);
 begin
-  ACount := 0;
-  SetLength(ABatch, 0);
-
-  if AMaxCount <= 0 then
-    Exit(False);
-
-  FQueueLock.Enter;
-  try
-    if FPendingFileCount = 0 then
-      Exit(False);
-
-    takeCount := AMaxCount;
-    if takeCount > FPendingFileCount then
-      takeCount := FPendingFileCount;
-
-    SetLength(ABatch, takeCount);
-    for i := 0 to takeCount - 1 do
-      ABatch[i] := FPendingFiles[FPendingFileStart + i];
-
-    Inc(FPendingFileStart, takeCount);
-    Dec(FPendingFileCount, takeCount);
-    if FPendingFileCount = 0 then
-      FPendingFileStart := 0;
-
-    ACount := takeCount;
-    Result := True;
-  finally
-    FQueueLock.Leave;
-  end;
+  FOnFilesBatch := AHandler;
 end;
 
-function TScanThread.HasPendingData: boolean;
+procedure TScanThread.SetOnDone(const AHandler: TScanDoneHandler);
 begin
-  FQueueLock.Enter;
-  try
-    Result := (FPendingFolderCount > 0) or (FPendingFileCount > 0);
-  finally
-    FQueueLock.Leave;
-  end;
-end;
-
-function TScanThread.IsFinished: boolean;
-begin
-  FQueueLock.Enter;
-  try
-    Result := FFinished;
-  finally
-    FQueueLock.Leave;
-  end;
+  FOnDone := AHandler;
 end;
 
 end.
