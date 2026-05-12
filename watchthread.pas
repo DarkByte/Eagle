@@ -41,7 +41,6 @@ type
     CreatedAt: QWord;
   end;
 
-  TWatchEventKind = (wekCreate, wekModify, wekDelete, wekRename, wekAttributeChange);
   TWatchEventHandler = procedure(const APath: string) of object;
   TWatchRenameEventHandler = procedure(const AOldPath, ANewPath: string) of object;
   TWatchLogHandler = procedure(const AMessage: string) of object;
@@ -84,10 +83,8 @@ type
     FPendingMoves: specialize TDictionary<cuint32, TPendingMove>;
 
     FOnCreate: TWatchEventHandler;
-    FOnModify: TWatchEventHandler;
     FOnDelete: TWatchEventHandler;
     FOnRename: TWatchRenameEventHandler;
-    FOnAttributeChange: TWatchEventHandler;
     FOnLog: TWatchLogHandler;
     FOnInitialScan: TWatchInitialScanHandler;
     FOnScanProgress: TWatchScanProgressHandler;
@@ -95,7 +92,6 @@ type
 
     FPendingLogMessage: string;
     FPendingScanProgressCount: integer;
-    FLastProgressTime: QWord;
     FPendingCreatePath: string;
     FPendingDeletePath: string;
     FPendingRenameOldPath: string;
@@ -159,10 +155,8 @@ type
     procedure WatchFromDB;
 
     procedure SetOnCreate(const AHandler: TWatchEventHandler);
-    procedure SetOnModify(const AHandler: TWatchEventHandler);
     procedure SetOnDelete(const AHandler: TWatchEventHandler);
     procedure SetOnRename(const AHandler: TWatchRenameEventHandler);
-    procedure SetOnAttributeChange(const AHandler: TWatchEventHandler);
 
     procedure SetOnLog(const AHandler: TWatchLogHandler);
     procedure SetOnInitialScan(const AHandler: TWatchInitialScanHandler);
@@ -217,11 +211,6 @@ begin
   FOnCreate := AHandler;
 end;
 
-procedure TWatchThread.SetOnModify(const AHandler: TWatchEventHandler);
-begin
-  FOnModify := AHandler;
-end;
-
 procedure TWatchThread.SetOnDelete(const AHandler: TWatchEventHandler);
 begin
   FOnDelete := AHandler;
@@ -230,11 +219,6 @@ end;
 procedure TWatchThread.SetOnRename(const AHandler: TWatchRenameEventHandler);
 begin
   FOnRename := AHandler;
-end;
-
-procedure TWatchThread.SetOnAttributeChange(const AHandler: TWatchEventHandler);
-begin
-  FOnAttributeChange := AHandler;
 end;
 
 procedure TWatchThread.SetOnLog(const AHandler: TWatchLogHandler);
@@ -325,7 +309,6 @@ begin
   FFoundFilesCount := 0;
   FFoundFilesTotalCount := 0;
   SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
-  FLastProgressTime := GetTickCount64;
   SetLength(FPendingFolderPackets, 0);
   SetLength(FPendingFilePackets, 0);
   FScanThreadDone := False;
@@ -564,7 +547,6 @@ end;
 procedure TWatchThread.QueueScanProgressIfDue;
 begin
   if (FFoundFilesTotalCount and $7FFF = 0) then begin
-    FLastProgressTime := GetTickCount64;
     FPendingScanProgressCount := FFoundFilesTotalCount;
     Synchronize(@DispatchScanProgress);
   end;

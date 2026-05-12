@@ -326,10 +326,10 @@ begin
     SetupWatchThread;
 
   btnEagle.Enabled := False;
-  if FWatchThread.Suspended then begin
+  if FWatchThread.Suspended then
     FWatchThread.Start;
-    FWatchThread.ScanFolders(eagleOptions.paths);
-  end;
+
+  FWatchThread.ScanFolders(eagleOptions.paths);
 end;
 
 procedure TMainForm.btnJustWatchClick(Sender: TObject);
@@ -338,10 +338,10 @@ begin
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
-  if FWatchThread.Suspended then begin
+  if FWatchThread.Suspended then
     FWatchThread.Start;
-    FWatchThread.WatchFromDB;
-  end;
+
+  FWatchThread.WatchFromDB;
 end;
 
 procedure TMainForm.edtFilterChange(Sender: TObject);

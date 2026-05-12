@@ -42,7 +42,6 @@ type
 
     procedure Open;
     procedure Close;
-    function IsOpen: boolean;
     function GetFiles(const AFilterText: string; searchPath: boolean; limit: Integer = 0): TEagleFileRecords;
     function GetUniqueFolders: TStringList;
 
@@ -52,11 +51,9 @@ type
     procedure RenamePath(const oldPath, newPath: string);
 
     procedure BeginSyncFiles;
-    procedure ImportFilesBatch(const AFiles: TEagleImportFileRecords);
     procedure ImportFilesBatch(const AFiles: TEagleImportFileRecords; const ACount: integer);
     procedure EndSyncFiles;
     procedure CancelSyncFiles;
-    procedure SyncFiles(const AFiles: TEagleImportFileRecords);
   end;
 
 implementation
@@ -131,11 +128,6 @@ begin
     FTransaction.Commit;
 
   FConnection.Close;
-end;
-
-function TEagleDB.IsOpen: boolean;
-begin
-  Result := FConnection.Connected;
 end;
 
 function TEagleDB.GetFiles(const AFilterText: string; searchPath: boolean; limit: Integer = 0): TEagleFileRecords;
@@ -497,11 +489,6 @@ begin
   end;
 end;
 
-procedure TEagleDB.ImportFilesBatch(const AFiles: TEagleImportFileRecords);
-begin
-  ImportFilesBatch(AFiles, Length(AFiles));
-end;
-
 procedure TEagleDB.ImportFilesBatch(const AFiles: TEagleImportFileRecords; const ACount: integer);
 begin
   if ACount <= 0 then
@@ -541,19 +528,6 @@ begin
 
   if not FTransaction.Active then
     FTransaction.StartTransaction;
-end;
-
-// full nuclear
-procedure TEagleDB.SyncFiles(const AFiles: TEagleImportFileRecords);
-begin
-  try
-    BeginSyncFiles;
-    ImportFilesBatch(AFiles);
-    EndSyncFiles;
-  except
-    CancelSyncFiles;
-    raise;
-  end;
 end;
 
 end.

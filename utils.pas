@@ -58,7 +58,6 @@ type
   end;
 
 function CurrentTime: string;
-function FullCurrentTime: string;
 function GetEagleDataDir: string;
 function GetEagleConfigDir: string;
 
@@ -72,7 +71,6 @@ function EndsWith(const Value, Suffix: string): boolean;
 function IsIgnoredTempFileName(const FileName: string): boolean;
 
 function EncodePathForFileURL(const APath: string): string;
-function SumArray(list: array of integer): integer;
 
 procedure ColorToRGB(color: TColor; out r, g, b: byte);
 
@@ -114,11 +112,6 @@ end;
 function CurrentTime: string;
 begin
   Result := FormatDateTime('hh:nn:ss.zzz', Now);
-end;
-
-function FullCurrentTime: string;
-begin
-  Result := FormatDateTime('dd.mm hh:nn:ss.zzz', Now);
 end;
 
 function GetEagleDataDir: string;
@@ -387,15 +380,6 @@ begin
   Result := StringReplace(Result, '?', '%3F', [rfReplaceAll]);
   Result := StringReplace(Result, '''', '%27', [rfReplaceAll]);
   Result := StringReplace(Result, ' ', '%20', [rfReplaceAll]);
-end;
-
-function SumArray(list: array of integer): integer;
-var
-  i: integer;
-begin
-  Result := 0;
-  for i := Low(list) to High(list) do
-    Inc(Result, list[i]);
 end;
 
 procedure ColorToRGB(color: TColor; out r, g, b: byte);
