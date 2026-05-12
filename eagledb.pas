@@ -101,6 +101,8 @@ begin
     'CREATE TABLE IF NOT EXISTS files (' + 'id INTEGER PRIMARY KEY AUTOINCREMENT, ' + 'path TEXT NOT NULL, ' +
     'name TEXT NOT NULL, ' + 'size INTEGER, ' + 'timestamp INTEGER, ' + 'UNIQUE(name, path)' + ');'
     );
+
+  FConnection.ExecuteDirect('CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);');
   FTransaction.Commit;
 end;
 
@@ -208,10 +210,10 @@ begin
     query.DataBase := FConnection;
     query.Transaction := FTransaction;
     query.SQL.Text :=
-      'SELECT DISTINCT path ' +
-      'FROM files ' +
-      'WHERE path IS NOT NULL AND path <> '''' ' +
-      'ORDER BY path';
+      'SELECT path ' +
+      'FROM files INDEXED BY idx_files_path ' +
+      'WHERE path <> '''' ' +
+      'GROUP BY path';
     query.Open;
 
     while not query.EOF do begin

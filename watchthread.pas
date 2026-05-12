@@ -287,15 +287,17 @@ begin
     FCmdLock.Leave;
   end;
 
-  if doWatchDB then
-    ExecuteWatchDB;
-
   if Assigned(pathsToScan) then
   try
+    // Full scan takes priority over "just watch" requests.
+    doWatchDB := False;
     StartScan(pathsToScan);
   finally
     pathsToScan.Free;
   end;
+
+  if doWatchDB then
+    ExecuteWatchDB;
 end;
 
 procedure TWatchThread.StartScan(const APaths: TStringList);
@@ -867,6 +869,7 @@ var
   db: TEagleDB;
   folders: TStringList;
   i: integer;
+  hasPendingScan: boolean;
 begin
   Result := 0;
   db := TEagleDB.Create;
@@ -879,6 +882,18 @@ begin
       for i := 0 to folders.Count - 1 do begin
         if Terminated then
           Break;
+
+        FCmdLock.Enter;
+        try
+          hasPendingScan := FPendingScanPaths.Count > 0;
+        finally
+          FCmdLock.Leave;
+        end;
+
+        if hasPendingScan then begin
+          QueueLog('[WATCH] Canceled by full scan request');
+          Break;
+        end;
 
         if AddWatchDir(folders[i]) then
           Inc(Result);

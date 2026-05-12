@@ -151,16 +151,16 @@ object MainForm: TMainForm
     TabOrder = 3
     OnClick = btnEagleClick
   end
-  object btnJustWatch: TButton
+  object btnMonitor: TButton
     Left = 394
     Height = 25
     Hint = 'Just watch known folders, no searching'
     Top = 4
     Width = 75
     Anchors = [akTop, akRight]
-    Caption = 'Watch'
+    Caption = 'Monitor'
     TabOrder = 4
-    OnClick = btnJustWatchClick
+    OnClick = btnMonitorClick
   end
   object timerFilterDebounce: TTimer
     Enabled = False

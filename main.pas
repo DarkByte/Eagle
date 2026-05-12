@@ -17,7 +17,7 @@ type
   { TMainForm }
   TMainForm = class(TForm)
     btnEagle: TBitBtn;
-    btnJustWatch: TButton;
+    btnMonitor: TButton;
     edtFilter: TEdit;
     fileTree: TLazVirtualStringTree;
     Label1: TLabel;
@@ -46,7 +46,7 @@ type
     TrayIcon: TTrayIcon;
 
     procedure btnEagleClick(Sender: TObject);
-    procedure btnJustWatchClick(Sender: TObject);
+    procedure btnMonitorClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure timerFilterDebounceTimer(Sender: TObject);
@@ -203,6 +203,8 @@ begin
   benchStamp.InsertTime('Starting from DB');
   SetupFileTree;
   RefreshFileTree;
+
+  btnMonitor.Enabled := High(FFileRecords) > 0;
   benchStamp.InsertTime('Finished from DB');
 end;
 
@@ -332,9 +334,9 @@ begin
   FWatchThread.ScanFolders(eagleOptions.paths);
 end;
 
-procedure TMainForm.btnJustWatchClick(Sender: TObject);
+procedure TMainForm.btnMonitorClick(Sender: TObject);
 begin
-  btnEagle.Enabled := False;
+  //btnEagle.Enabled := False;
   if not Assigned(FWatchThread) then
     SetupWatchThread;
 
