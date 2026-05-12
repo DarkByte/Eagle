@@ -25,6 +25,16 @@ const
   PENDING_MOVE_TIMEOUT_MS = 500;
 
 type
+  TFolderBatchPacket = record
+    Items: TScanFolderBatch;
+    Count: integer;
+  end;
+
+  TFileBatchPacket = record
+    Items: TEagleImportFileRecords;
+    Count: integer;
+  end;
+
   TPendingMove = record
     Path: string;
     IsDir: boolean;
@@ -59,9 +69,8 @@ type
     FPendingWatchFromDB: boolean;
 
     FScanThread: TScanThread;
-    FPendingScannedFolders: TStringList;
-    FPendingScannedFiles: TEagleImportFileRecords;
-    FPendingScannedFileCount: integer;
+    FPendingFolderPackets: array of TFolderBatchPacket;
+    FPendingFilePackets: array of TFileBatchPacket;
     FScanThreadDone: boolean;
 
     FFoundFiles: TEagleImportFileRecords;
@@ -146,7 +155,6 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure ScanFolders(const APaths: array of string); overload;
     procedure ScanFolders(const APaths: TStringList); overload;
     procedure WatchFromDB;
 
@@ -175,8 +183,8 @@ begin
   FCmdLock := TCriticalSection.Create;
   FPendingScanPaths := TStringList.Create;
   FPendingWatchFromDB := False;
-  FPendingScannedFolders := TStringList.Create;
-  FPendingScannedFileCount := 0;
+  SetLength(FPendingFolderPackets, 0);
+  SetLength(FPendingFilePackets, 0);
   FScanThreadDone := False;
   FScanThread := nil;
   FWatchedFolders := specialize TDictionary<cint, string>.Create;
@@ -189,8 +197,8 @@ end;
 destructor TWatchThread.Destroy;
 begin
   FPendingScanPaths.Free;
-  FPendingScannedFolders.Free;
-  SetLength(FPendingScannedFiles, 0);
+  SetLength(FPendingFolderPackets, 0);
+  SetLength(FPendingFilePackets, 0);
   if Assigned(FScanThread) then begin
     FScanThread.Terminate;
     FScanThread.WaitFor;
@@ -247,19 +255,6 @@ end;
 procedure TWatchThread.SetOnDone(const AHandler: TWatchDoneHandler);
 begin
   FOnDone := AHandler;
-end;
-
-procedure TWatchThread.ScanFolders(const APaths: array of string);
-var
-  i: integer;
-begin
-  FCmdLock.Enter;
-  try
-    for i := Low(APaths) to High(APaths) do
-      FPendingScanPaths.Add(ExcludeTrailingPathDelimiter(APaths[i]));
-  finally
-    FCmdLock.Leave;
-  end;
 end;
 
 procedure TWatchThread.ScanFolders(const APaths: TStringList);
@@ -331,9 +326,8 @@ begin
   FFoundFilesTotalCount := 0;
   SetLength(FFoundFiles, INITIAL_SCAN_BATCH_SIZE);
   FLastProgressTime := GetTickCount64;
-  SetLength(FPendingScannedFiles, 0);
-  FPendingScannedFileCount := 0;
-  FPendingScannedFolders.Clear;
+  SetLength(FPendingFolderPackets, 0);
+  SetLength(FPendingFilePackets, 0);
   FScanThreadDone := False;
 
   FScanThread := TScanThread.Create(APaths);
@@ -345,15 +339,17 @@ end;
 
 procedure TWatchThread.HandleScanFoldersBatch(const AFolders: TScanFolderBatch; const ACount: integer);
 var
-  i: integer;
+  packetIndex: integer;
 begin
   if ACount <= 0 then
     Exit;
 
   FCmdLock.Enter;
   try
-    for i := 0 to ACount - 1 do
-      FPendingScannedFolders.Add(AFolders[i]);
+    packetIndex := Length(FPendingFolderPackets);
+    SetLength(FPendingFolderPackets, packetIndex + 1);
+    FPendingFolderPackets[packetIndex].Items := AFolders;
+    FPendingFolderPackets[packetIndex].Count := ACount;
   finally
     FCmdLock.Leave;
   end;
@@ -361,18 +357,17 @@ end;
 
 procedure TWatchThread.HandleScanFilesBatch(const AFiles: TEagleImportFileRecords; const ACount: integer);
 var
-  i, baseIndex: integer;
+  packetIndex: integer;
 begin
   if ACount <= 0 then
     Exit;
 
   FCmdLock.Enter;
   try
-    baseIndex := FPendingScannedFileCount;
-    SetLength(FPendingScannedFiles, baseIndex + ACount);
-    for i := 0 to ACount - 1 do
-      FPendingScannedFiles[baseIndex + i] := AFiles[i];
-    Inc(FPendingScannedFileCount, ACount);
+    packetIndex := Length(FPendingFilePackets);
+    SetLength(FPendingFilePackets, packetIndex + 1);
+    FPendingFilePackets[packetIndex].Items := AFiles;
+    FPendingFilePackets[packetIndex].Count := ACount;
   finally
     FCmdLock.Leave;
   end;
@@ -390,33 +385,25 @@ end;
 
 procedure TWatchThread.DrainActiveScan;
 var
-  i: integer;
-  localFolders: TStringList;
-  localFiles: TEagleImportFileRecords;
-  localFileCount: integer;
+  i, j: integer;
+  localFolderPackets: array of TFolderBatchPacket;
+  localFilePackets: array of TFileBatchPacket;
   localDone: boolean;
 begin
   if not Assigned(FScanThread) then
     Exit;
 
-  localFolders := TStringList.Create;
-  localFileCount := 0;
-  SetLength(localFiles, 0);
+  SetLength(localFolderPackets, 0);
+  SetLength(localFilePackets, 0);
   localDone := False;
   try
     FCmdLock.Enter;
     try
-      localFolders.Assign(FPendingScannedFolders);
-      FPendingScannedFolders.Clear;
+      localFolderPackets := FPendingFolderPackets;
+      SetLength(FPendingFolderPackets, 0);
 
-      localFileCount := FPendingScannedFileCount;
-      if localFileCount > 0 then begin
-        SetLength(localFiles, localFileCount);
-        for i := 0 to localFileCount - 1 do
-          localFiles[i] := FPendingScannedFiles[i];
-        SetLength(FPendingScannedFiles, 0);
-        FPendingScannedFileCount := 0;
-      end;
+      localFilePackets := FPendingFilePackets;
+      SetLength(FPendingFilePackets, 0);
 
       localDone := FScanThreadDone;
     finally
@@ -424,69 +411,64 @@ begin
     end;
 
     if eagleOptions.watchChanges then begin
-      for i := 0 to localFolders.Count - 1 do
-        AddWatchDir(localFolders[i]);
+      for i := 0 to Length(localFolderPackets) - 1 do
+        for j := 0 to localFolderPackets[i].Count - 1 do
+          AddWatchDir(localFolderPackets[i].Items[j]);
     end;
 
-    for i := 0 to localFileCount - 1 do begin
-      AppendFoundFile(localFiles[i]);
-      QueueScanProgressIfDue;
-    end;
+    for i := 0 to Length(localFilePackets) - 1 do
+      for j := 0 to localFilePackets[i].Count - 1 do begin
+        AppendFoundFile(localFilePackets[i].Items[j]);
+        QueueScanProgressIfDue;
+      end;
 
-    if localDone and (localFolders.Count = 0) and (localFileCount = 0) then
+    if localDone and (Length(localFolderPackets) = 0) and (Length(localFilePackets) = 0) then
       FinalizeScan;
   finally
-    localFolders.Free;
-    SetLength(localFiles, 0);
+    SetLength(localFolderPackets, 0);
+    SetLength(localFilePackets, 0);
   end;
 end;
 
 procedure TWatchThread.FinalizeScan;
 var
-  i: integer;
-  localFolders: TStringList;
-  localFiles: TEagleImportFileRecords;
-  localFileCount: integer;
+  i, j: integer;
+  localFolderPackets: array of TFolderBatchPacket;
+  localFilePackets: array of TFileBatchPacket;
 begin
   if not Assigned(FScanThread) then
     Exit;
 
   FScanThread.WaitFor;
 
-  localFolders := TStringList.Create;
-  localFileCount := 0;
-  SetLength(localFiles, 0);
+  SetLength(localFolderPackets, 0);
+  SetLength(localFilePackets, 0);
   try
     FCmdLock.Enter;
     try
-      localFolders.Assign(FPendingScannedFolders);
-      FPendingScannedFolders.Clear;
-
-      localFileCount := FPendingScannedFileCount;
-      if localFileCount > 0 then begin
-        SetLength(localFiles, localFileCount);
-        for i := 0 to localFileCount - 1 do
-          localFiles[i] := FPendingScannedFiles[i];
-      end;
-      SetLength(FPendingScannedFiles, 0);
-      FPendingScannedFileCount := 0;
+      localFolderPackets := FPendingFolderPackets;
+      localFilePackets := FPendingFilePackets;
+      SetLength(FPendingFolderPackets, 0);
+      SetLength(FPendingFilePackets, 0);
       FScanThreadDone := False;
     finally
       FCmdLock.Leave;
     end;
 
     if eagleOptions.watchChanges then begin
-      for i := 0 to localFolders.Count - 1 do
-        AddWatchDir(localFolders[i]);
+      for i := 0 to Length(localFolderPackets) - 1 do
+        for j := 0 to localFolderPackets[i].Count - 1 do
+          AddWatchDir(localFolderPackets[i].Items[j]);
     end;
 
-    for i := 0 to localFileCount - 1 do begin
-      AppendFoundFile(localFiles[i]);
-      QueueScanProgressIfDue;
-    end;
+    for i := 0 to Length(localFilePackets) - 1 do
+      for j := 0 to localFilePackets[i].Count - 1 do begin
+        AppendFoundFile(localFilePackets[i].Items[j]);
+        QueueScanProgressIfDue;
+      end;
   finally
-    localFolders.Free;
-    SetLength(localFiles, 0);
+    SetLength(localFolderPackets, 0);
+    SetLength(localFilePackets, 0);
   end;
 
   FlushInitialScanBatch;
