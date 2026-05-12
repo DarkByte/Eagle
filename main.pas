@@ -6,11 +6,11 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Buttons,
-  Process, LCLIntf, ExtCtrls, Menus, Clipbrd,
+  Process, LCLIntf, ExtCtrls, Menus, Clipbrd, ComCtrls,
   laz.VirtualTrees,
   utils, formoptions, eagleipc, BaseUnix,
   TimeCheck,
-  WatchThread, EagleDB;
+  WatchThread, EagleDB, Types;
 
 type
 
@@ -28,6 +28,7 @@ type
     menuHelp: TMenuItem;
     menuAbout: TMenuItem;
     Separator1: TMenuItem;
+    statusBar: TStatusBar;
     traySearch: TMenuItem;
     trayQuit: TMenuItem;
     mnuOpenFile: TMenuItem;
@@ -49,6 +50,8 @@ type
     procedure btnMonitorClick(Sender: TObject);
     procedure edtFilterChange(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
+    procedure Memo1MouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure timerFilterDebounceTimer(Sender: TObject);
     procedure timerIPCTimer(Sender: TObject);
 
@@ -85,6 +88,7 @@ type
     FSortDirection: TSortDirection;
     FInitialScanImportActive: boolean;
     FInitialScanImportedCount: integer;
+    FTreeNeedsData: boolean;
 
     {$IFDEF EAGLE_MEM_PROFILE}
     FInitialScanBeforeSync: THeapStatus;
@@ -108,8 +112,7 @@ type
 
     procedure SetupWatchThread;
     procedure SetupDB;
-
-    procedure RefreshFileTree;
+    procedure RefreshFileTree(overrideLimit: Integer = 0);
     procedure SetupFileTree;
     procedure PopulateFileTree;
 
@@ -188,6 +191,7 @@ begin
   FSortDirection := sdAscending;
   FInitialScanImportActive := False;
   FInitialScanImportedCount := 0;
+  FTreeNeedsData := False;
 
   SetupIPCServer;
 
@@ -202,7 +206,8 @@ begin
 
   benchStamp.InsertTime('Starting from DB');
   SetupFileTree;
-  RefreshFileTree;
+
+  RefreshFileTree(500);
 
   btnMonitor.Enabled := High(FFileRecords) > 0;
   benchStamp.InsertTime('Finished from DB');
@@ -361,6 +366,12 @@ begin
     #27: if eagleOptions.escToMinimize then
       Application.Minimize;
   end;
+end;
+
+procedure TMainForm.Memo1MouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+begin
+  Memo1.ScrollBy(0, WheelDelta);
 end;
 
 procedure TMainForm.timerFilterDebounceTimer(Sender: TObject);
@@ -586,7 +597,7 @@ end;
 {$ENDREGION}
 
 {$REGION 'FileTree'}
-procedure TMainForm.RefreshFileTree;
+procedure TMainForm.RefreshFileTree(overrideLimit: Integer = 0);
 var
   filterText: string;
   r, g, b: byte;
@@ -603,8 +614,14 @@ begin
   if eagleOptions.limitResults then
     limit := eagleOptions.limitCount;
 
+  if overrideLimit > 0 then
+    limit := overrideLimit;
+
   filterText := Trim(edtFilter.Text);
   FFileRecords := FEagleDB.GetFiles(filterText, eagleOptions.searchPath, limit);
+
+  statusBar.Panels.Items[0].Text := IntToStr(Length(FFileRecords)) + ' file(s)';
+
   if FSortColumn <> NoColumn then
     SortFileRecords(FFileRecords, integer(FSortColumn), FSortDirection = sdDescending);
   PopulateFileTree;
@@ -723,27 +740,39 @@ procedure TMainForm.HandleInitialScan(const AFiles: TEagleImportFileRecords; con
 var
   afterSync, afterRefresh: THeapStatus;
 {$ENDIF}
+  procedure BeginInitialImport(const AEnableEarlyRefresh: boolean);
+  begin
+    FInitialScanImportActive := True;
+    FInitialScanImportedCount := 0;
+    FTreeNeedsData := AEnableEarlyRefresh and (Length(FFileRecords) = 0);
+
+    {$IFDEF EAGLE_MEM_PROFILE}
+    FInitialScanBeforeSync := GetHeapStatus;
+    Memo1.Lines.Add(Format('[MEM] before SyncFiles allocated=%d free=%d addr=%d',
+      [FInitialScanBeforeSync.TotalAllocated, FInitialScanBeforeSync.TotalFree, FInitialScanBeforeSync.TotalAddrSpace]));
+    LogProcessMemorySnapshot(Memo1, 'before SyncFiles');
+    {$ENDIF}
+
+    Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
+    benchStamp.InsertTime('Updating DB');
+    FEagleDB.BeginSyncFiles;
+  end;
+
 begin
   try
     if (ACount > 0) and (not FInitialScanImportActive) then begin
-      FInitialScanImportActive := True;
-      FInitialScanImportedCount := 0;
-
-      {$IFDEF EAGLE_MEM_PROFILE}
-      FInitialScanBeforeSync := GetHeapStatus;
-      Memo1.Lines.Add(Format('[MEM] before SyncFiles allocated=%d free=%d addr=%d',
-        [FInitialScanBeforeSync.TotalAllocated, FInitialScanBeforeSync.TotalFree, FInitialScanBeforeSync.TotalAddrSpace]));
-      LogProcessMemorySnapshot(Memo1, 'before SyncFiles');
-      {$ENDIF}
-
-      Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
-      benchStamp.InsertTime('Updating DB');
-      FEagleDB.BeginSyncFiles;
+      BeginInitialImport(True);
     end;
 
     if ACount > 0 then begin
       FEagleDB.ImportFilesBatch(AFiles, ACount);
       Inc(FInitialScanImportedCount, ACount);
+
+      if FTreeNeedsData then begin
+        FTreeNeedsData := False;
+        RefreshFileTree;
+      end;
+
       Exit;
     end;
 
@@ -751,28 +780,18 @@ begin
       Exit;
 
     if not FInitialScanImportActive then begin
-      FInitialScanImportActive := True;
-      FInitialScanImportedCount := 0;
-
-      {$IFDEF EAGLE_MEM_PROFILE}
-      FInitialScanBeforeSync := GetHeapStatus;
-      Memo1.Lines.Add(Format('[MEM] before SyncFiles allocated=%d free=%d addr=%d',
-        [FInitialScanBeforeSync.TotalAllocated, FInitialScanBeforeSync.TotalFree, FInitialScanBeforeSync.TotalAddrSpace]));
-      LogProcessMemorySnapshot(Memo1, 'before SyncFiles');
-      {$ENDIF}
-
-      Memo1.Lines.Add(benchStamp.StampNow('Saving to DB...'));
-      benchStamp.InsertTime('Updating DB');
-      FEagleDB.BeginSyncFiles;
+      BeginInitialImport(False);
     end;
 
     FEagleDB.EndSyncFiles;
     FInitialScanImportActive := False;
+    FTreeNeedsData := False;
   except
     if FInitialScanImportActive then begin
       FEagleDB.CancelSyncFiles;
       FInitialScanImportActive := False;
       FInitialScanImportedCount := 0;
+      FTreeNeedsData := False;
     end;
 
     raise;

@@ -1,10 +1,10 @@
 object MainForm: TMainForm
   Left = 359
-  Height = 300
+  Height = 548
   Top = 1330
   Width = 800
   Caption = 'Eagle'
-  ClientHeight = 300
+  ClientHeight = 548
   ClientWidth = 800
   Constraints.MinHeight = 300
   Constraints.MinWidth = 800
@@ -19,7 +19,7 @@ object MainForm: TMainForm
   OnWindowStateChange = FormWindowStateChange
   object Memo1: TMemo
     Left = 537
-    Height = 268
+    Height = 499
     Top = 28
     Width = 256
     Anchors = [akTop, akRight, akBottom]
@@ -28,6 +28,7 @@ object MainForm: TMainForm
     ParentFont = False
     TabOrder = 2
     TabStop = False
+    OnMouseWheel = Memo1MouseWheel
   end
   object edtFilter: TEdit
     Left = 0
@@ -40,7 +41,7 @@ object MainForm: TMainForm
   end
   object fileTree: TLazVirtualStringTree
     Left = 0
-    Height = 268
+    Height = 495
     Top = 32
     Width = 529
     Anchors = [akTop, akLeft, akRight, akBottom]
@@ -161,6 +162,29 @@ object MainForm: TMainForm
     Caption = 'Monitor'
     TabOrder = 4
     OnClick = btnMonitorClick
+  end
+  object statusBar: TStatusBar
+    Left = 1
+    Height = 21
+    Top = 525
+    Width = 798
+    BorderSpacing.Bottom = 1
+    BorderSpacing.Around = 1
+    Panels = <    
+      item
+        Text = '44242 file(s)'
+        Width = 100
+      end    
+      item
+        Alignment = taRightJustify
+        Bevel = pbRaised
+        Width = 50
+      end    
+      item
+        Alignment = taRightJustify
+        Width = 50
+      end>
+    SimplePanel = False
   end
   object timerFilterDebounce: TTimer
     Enabled = False
@@ -1606,12 +1630,12 @@ object MainForm: TMainForm
     }
     Visible = True
     OnClick = traySearchClick
-    Left = 40
-    Top = 456
+    Left = 392
+    Top = 64
   end
   object TrayMenu: TPopupMenu
-    Left = 128
-    Top = 456
+    Left = 480
+    Top = 64
     object traySearch: TMenuItem
       Caption = 'Search'
       Default = True
